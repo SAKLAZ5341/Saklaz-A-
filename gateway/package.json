@@ -1,0 +1,20 @@
+{
+  "name": "saklaz-gateway",
+  "version": "0.2.0",
+  "private": true,
+  "description": "SAKLAZ AI icin OpenAI Responses API guvenli gateway'i. OpenAI anahtari yalnizca burada durur.",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "start": "node src/server.ts",
+    "test": "node --test \"test/**/*.test.ts\"",
+    "typecheck": "tsc --noEmit",
+    "new-token": "node scripts/new-device-token.ts"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.6",
+    "typescript": "7.0.2"
+  }
+}
