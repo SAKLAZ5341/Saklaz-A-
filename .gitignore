@@ -43,3 +43,6 @@ Thumbs.db
 *.litertlm
 logs/
 *.log
+
+# Gateway yerel cihaz tokeni (gizli)
+DEVICE_TOKEN.txt
