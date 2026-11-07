@@ -1,0 +1,20 @@
+name: saklaz_android_bridge
+description: "SAKLAZ Android koprusu: Pigeon ile tip guvenli Kotlin <-> Dart kanallari."
+version: 0.1.0
+publish_to: none
+resolution: workspace
+
+environment:
+  sdk: ^3.13.5
+
+dependencies:
+  flutter:
+    sdk: flutter
+  saklaz_core: any
+  saklaz_voice: any
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  lints: ^6.0.0
+  pigeon: ^29.1.1

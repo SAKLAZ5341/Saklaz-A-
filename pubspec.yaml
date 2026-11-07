@@ -1,0 +1,15 @@
+name: saklaz_workspace
+description: SAKLAZ AI monorepo (Dart pub workspace koku)
+publish_to: none
+
+environment:
+  sdk: ^3.13.5
+
+workspace:
+  - apps/saklaz_app
+  - packages/saklaz_core
+  - packages/saklaz_ai_core
+  - packages/saklaz_memory
+  - packages/saklaz_voice
+  - packages/saklaz_android_bridge
+  - packages/saklaz_integrations

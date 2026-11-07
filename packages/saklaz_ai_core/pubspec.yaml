@@ -1,0 +1,15 @@
+name: saklaz_ai_core
+description: "SAKLAZ AI Core: asistan beyni arayuzu (yerel/bulut saglayicilar sonraki fazlarda)."
+version: 0.1.0
+publish_to: none
+resolution: workspace
+
+environment:
+  sdk: ^3.13.5
+
+dependencies:
+  saklaz_core: any
+
+dev_dependencies:
+  lints: ^6.0.0
+  test: ^1.25.6
