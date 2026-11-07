@@ -22,8 +22,11 @@
 
 ## 3. Yerel Veri Şifreleme
 
-- Veritabanı: SQLCipher (AES-256).
-- Veritabanı anahtarı: `SecureRandom` ile 256-bit üretilir → Android Keystore'daki donanım destekli (mümkünse StrongBox) AES-GCM anahtarıyla sarılır → sarılı hâli uygulama özel depolamasında tutulur.
+- Veritabanı: **SQLite3MultipleCiphers** (ChaCha20-Poly1305, sayfa bazlı kimlik doğrulamalı şifreleme). Phase 2'de SQLCipher yerine seçildi (MIT lisansı, OpenSSL bağımlılığı yok).
+- Veritabanı anahtarı: `SecureRandom` ile 256-bit üretilir → Android Keystore'daki donanım destekli (mümkünse StrongBox) AES-256-GCM anahtarıyla sarılır → sarılı hâli `noBackupFilesDir/saklaz_db_key.bin` içinde tutulur.
+- **Fail-closed:** Şifreleme kütüphanesi doğrulanamaz veya anahtar yanlışsa veritabanı açılmaz, diske hiçbir şey yazılmaz; uygulama bellek içi moda geçer ve kullanıcıyı uyarır.
+- Kanıt testi: `packages/saklaz_memory/test/encrypted_memory_database_test.dart` — dosyada düz metin, şema veya SQLite başlığı bulunmadığını doğrular.
+- `PRAGMA secure_delete = ON`: silinen kayıtların sayfaları sıfırlanır.
 - İsteğe bağlı: hassas bölümler (ör. kişisel olgular) için `setUserAuthenticationRequired` ile biyometrik doğrulama.
 - Yedekleme: `android:allowBackup="false"` ve `dataExtractionRules` ile hafıza bulut yedeğine **dahil edilmez** (kullanıcı ileride şifreli dışa aktarma ile kendi yedeğini alabilir).
 
@@ -50,8 +53,10 @@ Onay ekranında: hangi araç, hangi parametreler, alıcı(lar), içerik önizlem
 
 | İzin | Gerekçe | Faz |
 |---|---|---|
-| `INTERNET` | Gateway | 1 |
-| `RECORD_AUDIO` | Sesli komut | 3 |
+| `INTERNET` | SAKLAZ Gateway (yalnızca bulut izni verildiğinde kullanılır) | 2 ✅ |
+| `ACCESS_NETWORK_STATE` (normal) | Çevrimdışıyken bulutu denemeden yerel moda geçmek | 2 ✅ |
+| `com.google.android.apps.aicore.service.BIND_SERVICE` | ML Kit ekler: Gemini Nano (AICore) bağlantısı | 2 ✅ |
+| `RECORD_AUDIO` | Sesli komut — yalnızca "Konuşmayı Başlat" ile | 1 ✅ |
 | `POST_NOTIFICATIONS` | Hatırlatıcı bildirimleri | 2 |
 | `SCHEDULE_EXACT_ALARM` / `USE_EXACT_ALARM` | Zamanında hatırlatıcı (gerekirse) | 2 |
 | `CAMERA` | Fotoğraf/belge analizi | 6 |
@@ -61,13 +66,23 @@ Onay ekranında: hangi araç, hangi parametreler, alıcı(lar), içerik önizlem
 
 **Kullanılmayacak:** `READ_SMS`, `READ_CALL_LOG`, `MANAGE_EXTERNAL_STORAGE`, Erişilebilirlik servisi ile otomasyon, `SYSTEM_ALERT_WINDOW` (gerekmedikçe).
 
-## 7. Güvenli Geliştirme Kuralları
+## 7. SAKLAZ Gateway (Phase 2)
+
+- `OPENAI_API_KEY` yalnızca gateway ortamında; yanıtlarda, loglarda ve hata mesajlarında yer almaz (testle doğrulanır).
+- Cihaz kimliği: `skz_` önekli 256-bit rastgele token; sunucuda yalnızca SHA-256 özeti tutulur, sabit zamanlı karşılaştırılır. Token iptali = özeti listeden çıkarmak.
+- Uygulamada token, şifreli hafızadaki `preferences` tablosunda saklanır.
+- Sınırlar: dakikalık istek, günlük istek kotası, günlük USD bütçe (istek öncesi en kötü durum maliyeti kontrol edilir), model izin listesi, çıktı token üst sınırı, 64 KB gövde, 20 mesaj, mesaj başına 4000 karakter.
+- Veri azaltma: uygulama en fazla son 6 mesajı gönderir; kayıtlı kişisel bilgiler yalnızca kullanıcı ayarı açıkken ve yalnızca ilgili olanlar (en fazla 3) eklenir. `store: false`.
+- Release APK yalnızca HTTPS; gateway TLS sonlandıran bir ters vekil/platform arkasında çalışmalıdır.
+- Bulut kararı: "Asla / Her seferinde sor (varsayılan) / Sormadan". Sorulduğunda kart, nelerin gönderileceğini açıklar.
+
+## 8. Güvenli Geliştirme Kuralları
 
 - Bağımlılıklar sürüm sabitlenerek eklenir; `flutter pub outdated` / `npm audit` düzenli çalıştırılır.
 - Release build'de R8/obfuscation açık.
 - Gateway: girdi doğrulama (şema), istek boyutu sınırı, CORS kapalı, güvenlik başlıkları.
 - Kod incelemesinde güvenlik kontrol listesi: gizli bilgi, izin, loglanan veri, onay kapısı.
 
-## 8. Güvenlik Açığı Bildirimi
+## 9. Güvenlik Açığı Bildirimi
 
 Bu kişisel bir projedir. Bulunan açıklar proje sahibine doğrudan bildirilir ve DEVELOPMENT_LOG.md'de kayıt altına alınır.

@@ -2,7 +2,7 @@
 
 Türkçe konuşan, gizlilik odaklı kişisel yapay zekâ asistanı.
 
-> **Durum:** Phase 1 — Kod, otomatik testler ve APK derlemesi tamam. Gerçek cihaz (Fold 7) testi bekleniyor. Yapay zekâ henüz bağlı değil.
+> **Durum:** Phase 2 — İki beyinli AI core, OpenAI gateway, konuşma kontrolü ve şifreli hafıza kodlandı; otomatik testler ve release APK tamam. Fold 7 ve gerçek OpenAI testi bekleniyor.
 
 ## Hedef
 
@@ -40,6 +40,9 @@ Flutter · Dart · Kotlin · Android SDK · SQLite/SQLCipher · OpenAI Responses
 | [SECURITY.md](SECURITY.md) | Tehdit modeli, anahtar yönetimi, izinler, onay mekanizması |
 | [ROADMAP.md](ROADMAP.md) | Faz faz yol haritası |
 | [DEVELOPMENT_LOG.md](DEVELOPMENT_LOG.md) | Geliştirme günlüğü ve ortam raporu |
+| [gateway/README.md](gateway/README.md) | OpenAI gateway kurulum ve API |
+| [docs/LOCAL_AI_EVALUATION.md](docs/LOCAL_AI_EVALUATION.md) | Yerel model değerlendirmesi |
+| [docs/DEVICE_TEST_PHASE2.md](docs/DEVICE_TEST_PHASE2.md) | Phase 2 cihaz test kılavuzu |
 
 ## Geliştirme Ortamı (Phase 0'da doğrulandı)
 
@@ -87,5 +90,6 @@ packages/saklaz_ai_core/  Asistan beyni arayüzü
 packages/saklaz_memory/   Hafıza deposu arayüzü
 packages/saklaz_android_bridge/  Pigeon köprüsü
 packages/saklaz_integrations/    Entegrasyon arayüzleri
-docs/                     Test kılavuzları
+gateway/                  Node.js/TypeScript OpenAI gateway (anahtar yalnızca burada)
+docs/                     Test kılavuzları, yerel AI değerlendirmesi
 ```

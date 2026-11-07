@@ -6,9 +6,9 @@ Her faz bitiminde: testler geçer, gerçek cihazda manuel test yapılır, DEVELO
 |---|---|---|---|
 | 0 | Ortam & Mimari | Ortam raporu, doküman seti, Git deposu | ✅ Tamamlandı |
 | 1 | İskelet & Asistan Rolü | Monorepo, Kotlin asistan altyapısı, Pigeon, koyu tema UI, Türkçe STT/TTS altyapısı | 🟡 Kod + otomatik testler tamam; **cihaz testi bekliyor** |
-| 2 | Şifreli Hafıza, Notlar, Hatırlatıcılar | drift+SQLCipher, Keystore anahtar sarma, not/hatırlatıcı CRUD, bildirimler | ⏳ |
-| 3 | Ses (Türkçe) | STT/TTS soyutlaması, Android tr-TR STT/TTS, overlay'de sesli konuşma döngüsü | ⏳ |
-| 4 | AI Core: Gateway + Bulut + Yerel LLM | Node.js gateway, Responses API akışı, CloudLlmProvider, yerel model benchmark ve LocalLlmProvider, Router | ⏳ |
+| 2 | AI Core + Ses Kontrolü + Şifreli Hafıza | Başlat/Durdur konuşma modu, iki beyin (yerel kurallar + Gemini Nano / OpenAI Responses API), Node.js gateway, akıllı yönlendirme, SQLite3MC şifreli hafıza | 🟡 Kod + otomatik testler tamam; **cihaz ve gerçek API testi bekliyor** |
+| 3 | Notlar, Hatırlatıcılar, Gateway Yayını | Not/hatırlatıcı (AlarmManager, bildirim), gateway HTTPS yayını, akışlı (streaming) yanıt, anlamsal hafıza araması | ⏳ |
+| 4 | Ses Deneyimi | Araya girme (barge-in), daha doğal TTS seçeneği, gürültüde tanıma iyileştirmeleri | ⏳ |
 | 5 | Agent & Entegrasyonlar | Tool sistemi, onay kapısı, audit log; Takvim, Gmail, WhatsApp (intent + bildirim) | ⏳ |
 | 6 | Görsel Zekâ | Kamera, galeri, belge tarama, cihazda OCR, bulutta çok modlu analiz | ⏳ |
 | 7 | Cilalama & Sağlamlaştırma | Fold 7 iç/dış ekran deneyimi, performans, pil, güvenlik denetimi, release imzalama | ⏳ |

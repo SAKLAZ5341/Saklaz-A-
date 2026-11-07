@@ -93,26 +93,32 @@ SAKLAZ-AI/
 - **Yan tuş:** Samsung'da *Ayarlar → Gelişmiş özellikler → Yan tuş → Basılı tut → Dijital asistan* seçildiğinde sistem varsayılan dijital asistanı çağırır. Uygulama asistan rolünü aldığında yan tuş otomatik olarak SAKLAZ'ı açar. Bu davranış **gerçek Fold 7 üzerinde doğrulanmalıdır** (emülatörde Samsung ayarı yoktur).
 - Oturum açıldığında Flutter tarafına Pigeon kanalı ile `onAssistInvoked` olayı iletilir. Hızlı açılış için önceden ısıtılmış (`FlutterEngineCache`) bir Flutter engine kullanılır.
 
-### 4.3 AI Core
-```dart
-abstract interface class LlmProvider {
-  Stream<LlmEvent> respond(LlmRequest request); // metin parçaları, araç çağrıları, bitiş
-  Future<bool> isAvailable();
-}
+### 4.3 AI Core (Phase 2'de uygulandı — `packages/saklaz_ai_core`)
 ```
-- **CloudLlmProvider:** Gateway'e bağlanır; gateway OpenAI **Responses API** (`POST /v1/responses`) çağırır. Akış (streaming) ve function/tool calling desteklenir. Eski Assistants API **kullanılmaz**. Konuşma durumu için `previous_response_id` veya istemci tarafında tutulan bağlam kullanılır (gizlilik tercihine göre, `store: false` varsayılan).
-- **LocalLlmProvider:** Cihaz üzerinde model. Adaylar (Phase 4'te ölçülerek seçilecek):
-  1. Google **LiteRT-LM / MediaPipe LLM Inference** + Gemma ailesi küçük model (GPU/NPU hızlandırma)
-  2. **llama.cpp** (Dart FFI) + GGUF formatında küçük çok dilli model
-  Seçim kriterleri: Türkçe kalitesi, ilk token süresi, token/sn, RAM, pil, model boyutu.
-- **Router:** Kural tabanlı başlar (çevrimdışı mı? kullanıcı "sadece yerel" seçti mi? görev türü? hassas veri içeriyor mu?), ileride yerel model ile niyet sınıflandırmaya geçer.
+Kullanıcı metni
+   │
+   ▼
+LocalIntentEngine ──► GreetingIntent / TimeIntent / ... ──► Yerel kurallar (ağsız)
+   │                ──► RememberIntent / MemoryQueryIntent ─► Yerel hafıza (+ onay)
+   │                ──► GeneralIntent{complex, needsInternet}
+   ▼
+AssistantRouter(RouteContext: cloudMode, cloudConfigured, online, localLlmReady)
+   ├─ UseBrain(localLlm)   → LocalLlmClient → Gemini Nano (ML Kit, AICore)
+   ├─ UseBrain(cloud)      → GatewayClient  → SAKLAZ Gateway → OpenAI Responses API
+   ├─ AskCloudConsent      → arayüzde onay kartı (Gönder / Yerelde yanıtla / Gönderme)
+   └─ Unavailable(reason)  → offline / cloudNotConfigured / cloudDisabled / noLocalModel
+```
+- `LlmClient.complete(LlmRequest) → Result<LlmReply>`: bulut ve yerel aynı arayüz.
+- **Responses API** (`POST /v1/responses`, `store:false`) yalnızca gateway'den çağrılır; eski Assistants API kullanılmaz. Akış (streaming) ve tool calling sonraki fazlarda.
+- Veri azaltma: buluta en fazla son 6 mesaj; kişisel bilgiler yalnızca ayar açıkken.
+- Yerel model: Gemini Nano seçildi; gerekçe ve alternatifler `docs/LOCAL_AI_EVALUATION.md`.
 
-### 4.4 Memory
-- **drift** (tip güvenli SQLite ORM) + **SQLCipher** (AES-256 sayfa şifreleme).
-- Veritabanı anahtarı: rastgele 256-bit üretilir, **Android Keystore** içindeki donanım destekli bir anahtarla sarılarak (wrap) saklanır.
-- Tablolar (ilk taslak): `notes`, `reminders`, `facts` (kullanıcı hakkında hatırlanan bilgiler), `conversations`, `messages`, `audit_log`, `settings`.
-- Buluta yalnızca o istek için gerekli minimum bağlam gönderilir; tüm hafıza asla toplu gönderilmez.
-- İleride: yerel embedding ile anlamsal arama (sqlite-vec veya benzeri, değerlendirilecek).
+### 4.4 Memory (Phase 2'de uygulandı — `packages/saklaz_memory`)
+- `package:sqlite3` + **SQLite3MultipleCiphers** (ChaCha20-Poly1305). Fail-closed açılış.
+- Anahtar: 256-bit rastgele, Android Keystore AES-GCM ile sarılı (`KeyVaultController.kt`).
+- Tablolar: `messages` (≤500), `facts` (yalnızca kullanıcı onayıyla), `preferences` (ayarlar + gateway tokenı).
+- Yerel arama: Türkçe normalize anahtar kelime + kök eşleşmesi (`MemorySearch`). Anlamsal arama sonraki faz.
+- Sonraki fazlar: `notes`, `reminders`, `audit_log`.
 
 ### 4.5 Agent
 - Her yetenek bir **Tool** olarak tanımlanır:

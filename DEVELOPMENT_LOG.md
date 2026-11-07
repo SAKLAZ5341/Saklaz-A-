@@ -2,6 +2,90 @@
 
 ---
 
+## 2026-11-08 — Phase 2: AI Core + Ses Kontrolü + Şifreli Hafıza
+
+**Durum:** Kod, otomatik testler (mock ve yerel) ve release APK tamam. **Fold 7 üzerinde Phase 2 testi YAPILMADI** — cihaz ADB'de önce `offline`, sonra hiç görünmedi. **Gerçek OpenAI testi YAPILMADI** — gateway yayınlanmadı, anahtar tanımlı değil.
+
+### Phase 1 cihaz durumu (kullanıcı bildirimi)
+- Kullanıcı: "Phase 1 APK'sı Fold 7 üzerinde kuruldu ve uygulama açıldı." → T1 kısmen doğrulandı (kullanıcı gözlemi).
+- Rol, yan tuş, ses testleri (R/A/V) hâlâ kayıtlı değil.
+
+### Yapılanlar
+**A/D. Konuşma kontrolü**
+- Ana ekranda ayrı **Konuşmayı Başlat** / **Konuşmayı Durdur**; açılışta mikrofon kapalı.
+- Konuşma modu: dinle → yanıtla → TTS bitince yeniden dinle; Durdur her şeyi sonlandırır.
+- **Sesli yanıt** aç/kapat ana ekranda, dinlemeden bağımsız ve kalıcı.
+- Her SAKLAZ yanıtında **Tekrar dinle** ve kaynak etiketi (Yerel / Hafıza / Yerel AI / OpenAI / Sistem).
+- Arka plana geçişte (`hidden/paused`) konuşma + mikrofon kapanır; `inactive`'de kapanmaz (izin diyaloğu akışını bozmamak için). Kotlin `onPause` ayrıca tanımayı iptal eder.
+- 3 art arda sessizlik/anlaşılamama → konuşma modu kendiliğinden durur.
+- "Yan tuşla açılınca dinle" varsayılanı **kapalı** yapıldı (Phase 1'de açıktı).
+
+**B. AI Core**
+- Yerel: `LocalIntentEngine` (selam, saat, tarih, kimlik, teşekkür, yardım, hatırla, hafıza sorgusu) — ağsız.
+- Yerel LLM: **Gemini Nano / ML Kit GenAI Prompt API** (`genai-prompt:1.0.0-beta1`). Model APK'da yok; sistem yönetir; indirme yalnızca kullanıcı onayıyla. Ayrıntı: `docs/LOCAL_AI_EVALUATION.md`.
+- Bulut: `GatewayClient` → SAKLAZ Gateway → OpenAI **Responses API** (`store:false`). Model ayarlanabilir.
+- **Gateway** (`gateway/`): Node 24 + TypeScript (derleme adımı yok, çalışma zamanı bağımlılığı yok). Cihaz başına SHA-256 özetli Bearer token, dakikalık sınır, günlük istek kotası, günlük USD bütçe (ön maliyet kontrolü), model izin listesi, gövde doğrulaması, içerik loglamaz, upstream hata gövdesini sızdırmaz.
+
+**C. Akıllı model seçimi** (`AssistantRouter`)
+| İstek | Karar |
+|---|---|
+| Basit komut | Yerel kurallar (internet gerekmez) |
+| Hafıza kaydı/sorgusu | Yerel hafıza |
+| Karmaşık analiz | Bulut (izin modu: "Her seferinde sor" varsayılan) → yoksa yerel model → yoksa açıklama |
+| Güncel bilgi (hava, kur, haber) | Bağlantı + izin varsa bulut; yoksa açık neden |
+| Diğer genel | Önce yerel model, yoksa bulut (izinle) |
+| İnternet yok | Yerel özellikler çalışır, bulut gerektirenler açıklanır |
+
+**E. Hafıza**
+- SQLite3MultipleCiphers (ChaCha20-Poly1305) — `package:sqlite3` 3.9 hook'u ile; APK'da `libsqlite3mc.so` doğrulandı.
+- 256-bit anahtar `SecureRandom` ile üretilir, Android Keystore'daki AES-256-GCM anahtarıyla (StrongBox varsa) sarılır, `noBackupFilesDir`'de durur.
+- **Fail-closed:** Şifreleme kütüphanesi veya anahtar doğrulanamazsa diske yazılmaz; bellek içi moda geçilir ve kullanıcı uyarılır.
+- Tablolar: `messages` (en fazla 500), `facts` (yalnızca onayla), `preferences` (ayarlar, gateway tokenı).
+- Hafıza ekranı: şifreleme durumu, bilgiler (ekle/sil/hepsini sil — onaylı), geçmişi temizle.
+
+### Mimari kararlar (değişiklikler)
+- Phase 0'daki "drift + SQLCipher" yerine **sqlite3 + SQLite3MultipleCiphers**: hazır imzalı ikili, MIT lisansı, OpenSSL bağımlılığı yok, kod üretimi gerektirmez.
+- ML Kit iki izin ekledi: `com.google.android.apps.aicore.service.BIND_SERVICE` (AICore bağlantısı) ve AndroidX'in uygulama içi `DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`.
+- Debug yapısında HTTP'ye izin var (yerel ağdaki geliştirme gateway'i için); release HTTPS zorunlu.
+
+### Test sonuçları
+| Test | Tür | Sonuç |
+|---|---|---|
+| `flutter analyze` (tüm workspace) | Statik | ✅ No issues |
+| saklaz_core | Birim | ✅ 3/3 |
+| saklaz_voice | Birim | ✅ 11/11 |
+| saklaz_ai_core (niyet, yönlendirme, motor, gateway istemcisi) | Birim (**MOCK** HTTP) | ✅ 26/26 |
+| saklaz_memory (şifreleme: düz metin yok, yanlış anahtar reddi, kalıcılık) | Birim (**gerçek** SQLite3MC, Windows) | ✅ 10/10 |
+| Uygulama widget testleri (Başlat/Durdur, konuşma döngüsü, sesli yanıt bağımsızlığı, arka plan, izin, bulut onayı, çevrimdışı, hafıza) | Widget (**MOCK** platform/gateway) | ✅ 22/22 |
+| Kotlin birim | Birim | ✅ 3/3 |
+| Gateway | **MOCK** OpenAI | ✅ 16/16 + `tsc` temiz |
+| Gateway yerel süreç duman testi (gerçek HTTP; anahtar yok) | Entegrasyon | ✅ health 200, status 200, token yok 401, respond **503 not_configured**, logda içerik yok |
+| `flutter build apk --release` | Derleme | ✅ 58,3 MB |
+| Gerçek OpenAI Responses API çağrısı | Gerçek | ❌ **Yapılmadı** (anahtar/yayın yok) |
+| Fold 7: mikrofon aç/kapat, Türkçe STT, yerel AI, internet kesilmesi | Cihaz | ❌ **Yapılmadı** (cihaz bağlı değil) |
+
+### Hata kayıtları
+| # | Hata | Neden | Çözüm |
+|---|---|---|---|
+| E8 | ADB: cihaz `offline`, sonra listede yok | USB hata ayıklama yetkisi/bağlantı | Kullanıcıdan telefonda onay istendi — çözülmedi |
+| E9 | Hafıza testi: yeniden açılışta "Şifreleme destekli SQLite yüklenemedi" | Anahtar verilmeden önce sürüm sorgusu şifreli dosyayı okumaya çalıştı | Kütüphane kontrolü bellek içi ayrı bağlantıda; anahtar ilk okumadan önce |
+| E10 | `EncryptedMemoryDatabase` iki arayüzü birden uyguluyordu | `all/add/clear` imza çakışması | Bilgiler ayrı `facts` nesnesi |
+| E11 | `const Set` içinde yinelenen öğe | Durak kelime listesinde iki kez `ne` | Kaldırıldı |
+| E12 | Gateway testleri: `node --test test/` modül bulunamadı | Node klasörü dosya sandı | Glob deseni |
+| E13 | Gateway testlerinde beklenmeyen 429 | Test grubu dakikalık sınırı paylaşıyordu (gateway doğru davrandı) | Gruba yüksek sınır |
+| E14 | Yerel süreç testi komutu reddedildi | Komut tüm `node.exe` süreçlerini öldürebilirdi | `timeout 25` ile kendi kendini kapatan süreç |
+| E15 | Uzun Bash heredoc'ları yine ayrıştırılamadı (E3 tekrarı) | Çok sayıda tırnak | Write aracı |
+| E16 | **Gerçek hata:** Yerel model durumu Ayarlar açılmadan okunmuyordu → yönlendirici hep "hazır değil" görüyordu | `ref.read(...).value` ilk okumada `null` | `localAiProvider.future` 3 sn zaman aşımıyla beklenir |
+| E17 | Widget testinde onay kartına dokunulamadı | Kart ekran dışında (dar dış ekran) | `ensureVisible`; cihazda otomatik kaydırma var |
+
+### Bilinen sınırlamalar
+- Gateway günlük sayaçları bellekte; yeniden başlatmada sıfırlanır → OpenAI hesabında da aylık limit önerilir.
+- Gateway yanıtı akışsız (streaming yok) — uzun yanıtlarda bekleme hissedilebilir.
+- Gemini Nano Türkçe kalitesi bilinmiyor (belgelenmemiş).
+- Kişisel bilgi sorgusu anahtar kelime eşleşmesiyle; anlamsal arama sonraki faz.
+
+---
+
 ## 2026-11-07 — Phase 1: İskelet, Asistan Altyapısı, Arayüz, Ses
 
 **Durum:** Kod yazıldı, otomatik testler ve derleme başarılı. **Gerçek cihaz ve emülatör testi YAPILMADI** (bkz. "Test edilemeyenler"). Bu yüzden Phase 1 tamamlanmış sayılmaz.
