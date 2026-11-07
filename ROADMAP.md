@@ -4,8 +4,8 @@ Her faz bitiminde: testler geçer, gerçek cihazda manuel test yapılır, DEVELO
 
 | Faz | Başlık | Ana Çıktılar | Durum |
 |---|---|---|---|
-| 0 | Ortam & Mimari | Ortam raporu, doküman seti, Git deposu | ✅ Tamamlandı (onay bekliyor) |
-| 1 | İskelet & Asistan Rolü | Monorepo, Flutter app, Kotlin VoiceInteractionService, RoleManager isteği, yan tuşla açılan boş overlay, logger, CI | ⏳ |
+| 0 | Ortam & Mimari | Ortam raporu, doküman seti, Git deposu | ✅ Tamamlandı |
+| 1 | İskelet & Asistan Rolü | Monorepo, Kotlin asistan altyapısı, Pigeon, koyu tema UI, Türkçe STT/TTS altyapısı | 🟡 Kod + otomatik testler tamam; **cihaz testi bekliyor** |
 | 2 | Şifreli Hafıza, Notlar, Hatırlatıcılar | drift+SQLCipher, Keystore anahtar sarma, not/hatırlatıcı CRUD, bildirimler | ⏳ |
 | 3 | Ses (Türkçe) | STT/TTS soyutlaması, Android tr-TR STT/TTS, overlay'de sesli konuşma döngüsü | ⏳ |
 | 4 | AI Core: Gateway + Bulut + Yerel LLM | Node.js gateway, Responses API akışı, CloudLlmProvider, yerel model benchmark ve LocalLlmProvider, Router | ⏳ |

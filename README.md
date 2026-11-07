@@ -2,7 +2,7 @@
 
 Türkçe konuşan, gizlilik odaklı kişisel yapay zekâ asistanı.
 
-> **Durum:** Phase 0 — Ortam analizi ve mimari dokümantasyon. Henüz çalışan uygulama kodu yoktur.
+> **Durum:** Phase 1 — Kod, otomatik testler ve APK derlemesi tamam. Gerçek cihaz (Fold 7) testi bekleniyor. Yapay zekâ henüz bağlı değil.
 
 ## Hedef
 
@@ -58,3 +58,34 @@ Ayrıntılar ve eksikler için: [DEVELOPMENT_LOG.md](DEVELOPMENT_LOG.md)
 3. Riskli her işlem kullanıcı onayı gerektirir.
 4. Gerçek cihazda test edilmeyen özellik "tamamlandı" sayılmaz.
 5. Her aşama ayrı ve açıklayıcı bir Git commit'i ile kaydedilir.
+
+## Derleme ve Çalıştırma
+
+```powershell
+cd C:\Users\fatih\Desktop\SAKLAZ-AI
+flutter pub get                      # tüm workspace
+flutter analyze                      # statik analiz
+cd packages\saklaz_voice; dart test  # paket testleri (her paket için)
+cd ..\..\apps\saklaz_app
+flutter test                         # widget testleri
+flutter build apk --release          # APK
+flutter run --release                # bağlı cihazda çalıştır
+```
+
+Pigeon sözleşmesi değişirse: `cd packages\saklaz_android_bridge; dart run pigeon --input pigeons\saklaz_api.dart`
+
+Cihaz test adımları: [docs/DEVICE_TEST_PHASE1.md](docs/DEVICE_TEST_PHASE1.md)
+
+## Klasör Yapısı
+
+```
+apps/saklaz_app/          Flutter uygulaması (presentation, application, domain, infrastructure)
+  android/                Kotlin: asistan servisleri, ses, Pigeon host
+packages/saklaz_core/     Domain: Result, hata, logger, mesaj
+packages/saklaz_voice/    STT/TTS portları + ses oturumu
+packages/saklaz_ai_core/  Asistan beyni arayüzü
+packages/saklaz_memory/   Hafıza deposu arayüzü
+packages/saklaz_android_bridge/  Pigeon köprüsü
+packages/saklaz_integrations/    Entegrasyon arayüzleri
+docs/                     Test kılavuzları
+```

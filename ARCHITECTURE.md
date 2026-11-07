@@ -50,7 +50,7 @@
 └──────────────────────────────┘
 ```
 
-## 3. Depo (Monorepo) Yapısı — Phase 1'de oluşturulacak
+## 3. Depo (Monorepo) Yapısı — Phase 1'de oluşturuldu
 
 Dart **pub workspaces** (Dart 3.6+) ile tek depoda birden çok paket:
 
@@ -63,10 +63,10 @@ SAKLAZ-AI/
 │   ├── saklaz_core/             # Ortak modeller, Result tipi, logger arayüzü, hatalar
 │   ├── saklaz_ai_core/          # LlmProvider arayüzü, Router, bağlam yönetimi
 │   ├── saklaz_memory/           # Şifreli DB, repository'ler
-│   ├── saklaz_agent/            # Araç (tool) sistemi, onay kapısı, denetim logu
+│   ├── saklaz_agent/            # (Phase 5) Araç sistemi, onay kapısı, denetim logu
 │   ├── saklaz_voice/            # STT/TTS soyutlaması
 │   ├── saklaz_integrations/     # Gmail, Takvim, WhatsApp, kamera/belge
-│   └── saklaz_platform/         # Pigeon ile üretilen platform arayüzleri
+│   └── saklaz_android_bridge/   # Pigeon sözleşmesi + Android port adaptörleri
 ├── gateway/                     # Node.js (TypeScript) gateway sunucusu
 ├── docs/                        # Ek dokümanlar, ADR'ler (mimari karar kayıtları)
 └── *.md                         # Bu doküman seti
@@ -83,11 +83,11 @@ SAKLAZ-AI/
 - Asistan overlay: yan tuşla çağrıldığında açılan, yarım ekran sesli etkileşim arayüzü.
 
 ### 4.2 Asistan Rolü ve Yan Tuş (Kotlin)
-- `RoleManager.createRequestRoleIntent(RoleManager.ROLE_ASSISTANT)` ile kullanıcıdan varsayılan asistan olma izni istenir.
+- **ROLE_ASSISTANT uygulama içinden istenemez** (AOSP rol tanımında `requestable=false`): `createRequestRoleIntent` denenir; sistem vermezse *Varsayılan uygulamalar → Dijital asistan uygulaması* ayarı açılır. Rol durumu her zaman `RoleManager.isRoleHeld` + `VoiceInteractionService.isActiveService` ile sistemden okunur.
 - Asistan rolü için gerekli bileşenler:
   - `VoiceInteractionService` (sistem tarafından bağlanılan ana servis)
   - `VoiceInteractionSessionService` + `VoiceInteractionSession` (çağrıldığında açılan oturum)
-  - `RecognitionService` (meta veride zorunlu)
+  - `RecognitionService` (meta veride zorunlu). Rol alındığında sistemin varsayılan tanıyıcısı buna yönlendiği için SAKLAZ'ınki **gerçek bir tanıyıcıya vekâlet eder** (diğer uygulamaların sesle yazması bozulmaz).
   - `res/xml/interaction_service.xml` meta verisi
 - Ek olarak `android.intent.action.ASSIST` intent filtresi olan bir Activity (yedek giriş noktası).
 - **Yan tuş:** Samsung'da *Ayarlar → Gelişmiş özellikler → Yan tuş → Basılı tut → Dijital asistan* seçildiğinde sistem varsayılan dijital asistanı çağırır. Uygulama asistan rolünü aldığında yan tuş otomatik olarak SAKLAZ'ı açar. Bu davranış **gerçek Fold 7 üzerinde doğrulanmalıdır** (emülatörde Samsung ayarı yoktur).
