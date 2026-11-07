@@ -46,6 +46,8 @@ kotlin {
 dependencies {
     // Pigeon 29'un ürettiği Kotlin kodu coroutine kullanır.
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
+    // Yerel AI: Gemini Nano (sistem AICore). Model APK içinde DEĞİL; sistem yönetir.
+    implementation("com.google.mlkit:genai-prompt:1.0.0-beta1")
     testImplementation("junit:junit:4.13.2")
 }
 

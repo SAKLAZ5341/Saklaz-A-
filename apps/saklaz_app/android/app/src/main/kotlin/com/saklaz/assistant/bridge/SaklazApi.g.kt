@@ -271,6 +271,20 @@ enum class TtsEventType(val raw: Int) {
   }
 }
 
+enum class LocalModelStatus(val raw: Int) {
+  UNAVAILABLE(0),
+  DOWNLOADABLE(1),
+  DOWNLOADING(2),
+  AVAILABLE(3),
+  ERROR(4);
+
+  companion object {
+    fun ofRaw(raw: Int): LocalModelStatus? {
+      return values().firstOrNull { it.raw == raw }
+    }
+  }
+}
+
 /**
  * RoleManager'dan okunan gerçek durum. Uygulama bu değerleri tahmin etmez.
  *
@@ -561,6 +575,160 @@ data class TtsEventMessage (
     return "TtsEventMessage(type=$type, utteranceId=$utteranceId)"
   }
 }
+
+/** Generated class from Pigeon that represents data sent in messages. */
+data class DatabaseKeyMessage (
+  /** 256-bit rastgele anahtar (hex). Diske yalnızca Keystore ile şifreli yazılır. */
+  val hexKey: String,
+  /** Sarma anahtarı donanım destekli (TEE/StrongBox) ise true. */
+  val hardwareBacked: Boolean,
+  /** Yedeklenmeyen uygulama özel dizini (noBackupFilesDir). */
+  val databaseDirectory: String
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): DatabaseKeyMessage {
+      val hexKey = pigeonVar_list[0] as String
+      val hardwareBacked = pigeonVar_list[1] as Boolean
+      val databaseDirectory = pigeonVar_list[2] as String
+      return DatabaseKeyMessage(hexKey, hardwareBacked, databaseDirectory)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      hexKey,
+      hardwareBacked,
+      databaseDirectory,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as DatabaseKeyMessage
+    return SaklazApiPigeonUtils.deepEquals(this.hexKey, other.hexKey) && SaklazApiPigeonUtils.deepEquals(this.hardwareBacked, other.hardwareBacked) && SaklazApiPigeonUtils.deepEquals(this.databaseDirectory, other.databaseDirectory)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + SaklazApiPigeonUtils.deepHash(this.hexKey)
+    result = 31 * result + SaklazApiPigeonUtils.deepHash(this.hardwareBacked)
+    result = 31 * result + SaklazApiPigeonUtils.deepHash(this.databaseDirectory)
+    return result
+  }
+  override fun toString(): String {
+    return "DatabaseKeyMessage(hexKey=$hexKey, hardwareBacked=$hardwareBacked, databaseDirectory=$databaseDirectory)"
+  }
+}
+
+/** Generated class from Pigeon that represents data sent in messages. */
+data class DeviceCapabilityMessage (
+  val totalRamMb: Long,
+  val availableRamMb: Long,
+  val lowRamDevice: Boolean,
+  val socManufacturer: String,
+  val socModel: String,
+  val abis: List<String>,
+  val sdkInt: Long
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): DeviceCapabilityMessage {
+      val totalRamMb = pigeonVar_list[0] as Long
+      val availableRamMb = pigeonVar_list[1] as Long
+      val lowRamDevice = pigeonVar_list[2] as Boolean
+      val socManufacturer = pigeonVar_list[3] as String
+      val socModel = pigeonVar_list[4] as String
+      val abis = pigeonVar_list[5] as List<String>
+      val sdkInt = pigeonVar_list[6] as Long
+      return DeviceCapabilityMessage(totalRamMb, availableRamMb, lowRamDevice, socManufacturer, socModel, abis, sdkInt)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      totalRamMb,
+      availableRamMb,
+      lowRamDevice,
+      socManufacturer,
+      socModel,
+      abis,
+      sdkInt,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as DeviceCapabilityMessage
+    return SaklazApiPigeonUtils.deepEquals(this.totalRamMb, other.totalRamMb) && SaklazApiPigeonUtils.deepEquals(this.availableRamMb, other.availableRamMb) && SaklazApiPigeonUtils.deepEquals(this.lowRamDevice, other.lowRamDevice) && SaklazApiPigeonUtils.deepEquals(this.socManufacturer, other.socManufacturer) && SaklazApiPigeonUtils.deepEquals(this.socModel, other.socModel) && SaklazApiPigeonUtils.deepEquals(this.abis, other.abis) && SaklazApiPigeonUtils.deepEquals(this.sdkInt, other.sdkInt)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + SaklazApiPigeonUtils.deepHash(this.totalRamMb)
+    result = 31 * result + SaklazApiPigeonUtils.deepHash(this.availableRamMb)
+    result = 31 * result + SaklazApiPigeonUtils.deepHash(this.lowRamDevice)
+    result = 31 * result + SaklazApiPigeonUtils.deepHash(this.socManufacturer)
+    result = 31 * result + SaklazApiPigeonUtils.deepHash(this.socModel)
+    result = 31 * result + SaklazApiPigeonUtils.deepHash(this.abis)
+    result = 31 * result + SaklazApiPigeonUtils.deepHash(this.sdkInt)
+    return result
+  }
+  override fun toString(): String {
+    return "DeviceCapabilityMessage(totalRamMb=$totalRamMb, availableRamMb=$availableRamMb, lowRamDevice=$lowRamDevice, socManufacturer=$socManufacturer, socModel=$socModel, abis=$abis, sdkInt=$sdkInt)"
+  }
+}
+
+/** Generated class from Pigeon that represents data sent in messages. */
+data class LocalModelInfoMessage (
+  val status: LocalModelStatus,
+  val baseModelName: String? = null,
+  val detail: String? = null
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): LocalModelInfoMessage {
+      val status = pigeonVar_list[0] as LocalModelStatus
+      val baseModelName = pigeonVar_list[1] as String?
+      val detail = pigeonVar_list[2] as String?
+      return LocalModelInfoMessage(status, baseModelName, detail)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      status,
+      baseModelName,
+      detail,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as LocalModelInfoMessage
+    return SaklazApiPigeonUtils.deepEquals(this.status, other.status) && SaklazApiPigeonUtils.deepEquals(this.baseModelName, other.baseModelName) && SaklazApiPigeonUtils.deepEquals(this.detail, other.detail)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + SaklazApiPigeonUtils.deepHash(this.status)
+    result = 31 * result + SaklazApiPigeonUtils.deepHash(this.baseModelName)
+    result = 31 * result + SaklazApiPigeonUtils.deepHash(this.detail)
+    return result
+  }
+  override fun toString(): String {
+    return "LocalModelInfoMessage(status=$status, baseModelName=$baseModelName, detail=$detail)"
+  }
+}
 private open class SaklazApiPigeonCodec : StandardMessageCodec() {
   override fun readValueOfType(type: Byte, buffer: ByteBuffer): Any? {
     return when (type) {
@@ -590,33 +758,53 @@ private open class SaklazApiPigeonCodec : StandardMessageCodec() {
         }
       }
       134.toByte() -> {
-        (readValue(buffer) as? List<Any?>)?.let {
-          AssistantRoleStatusMessage.fromList(it)
+        (readValue(buffer) as Long?)?.let {
+          LocalModelStatus.ofRaw(it.toInt())
         }
       }
       135.toByte() -> {
         (readValue(buffer) as? List<Any?>)?.let {
-          AssistLaunchMessage.fromList(it)
+          AssistantRoleStatusMessage.fromList(it)
         }
       }
       136.toByte() -> {
         (readValue(buffer) as? List<Any?>)?.let {
-          SpeechEventMessage.fromList(it)
+          AssistLaunchMessage.fromList(it)
         }
       }
       137.toByte() -> {
         (readValue(buffer) as? List<Any?>)?.let {
-          SpeechEngineInfoMessage.fromList(it)
+          SpeechEventMessage.fromList(it)
         }
       }
       138.toByte() -> {
         (readValue(buffer) as? List<Any?>)?.let {
-          TtsInitResultMessage.fromList(it)
+          SpeechEngineInfoMessage.fromList(it)
         }
       }
       139.toByte() -> {
         (readValue(buffer) as? List<Any?>)?.let {
+          TtsInitResultMessage.fromList(it)
+        }
+      }
+      140.toByte() -> {
+        (readValue(buffer) as? List<Any?>)?.let {
           TtsEventMessage.fromList(it)
+        }
+      }
+      141.toByte() -> {
+        (readValue(buffer) as? List<Any?>)?.let {
+          DatabaseKeyMessage.fromList(it)
+        }
+      }
+      142.toByte() -> {
+        (readValue(buffer) as? List<Any?>)?.let {
+          DeviceCapabilityMessage.fromList(it)
+        }
+      }
+      143.toByte() -> {
+        (readValue(buffer) as? List<Any?>)?.let {
+          LocalModelInfoMessage.fromList(it)
         }
       }
       else -> super.readValueOfType(type, buffer)
@@ -644,28 +832,44 @@ private open class SaklazApiPigeonCodec : StandardMessageCodec() {
         stream.write(133)
         writeValue(stream, value.raw.toLong())
       }
-      is AssistantRoleStatusMessage -> {
+      is LocalModelStatus -> {
         stream.write(134)
-        writeValue(stream, value.toList())
+        writeValue(stream, value.raw.toLong())
       }
-      is AssistLaunchMessage -> {
+      is AssistantRoleStatusMessage -> {
         stream.write(135)
         writeValue(stream, value.toList())
       }
-      is SpeechEventMessage -> {
+      is AssistLaunchMessage -> {
         stream.write(136)
         writeValue(stream, value.toList())
       }
-      is SpeechEngineInfoMessage -> {
+      is SpeechEventMessage -> {
         stream.write(137)
         writeValue(stream, value.toList())
       }
-      is TtsInitResultMessage -> {
+      is SpeechEngineInfoMessage -> {
         stream.write(138)
         writeValue(stream, value.toList())
       }
-      is TtsEventMessage -> {
+      is TtsInitResultMessage -> {
         stream.write(139)
+        writeValue(stream, value.toList())
+      }
+      is TtsEventMessage -> {
+        stream.write(140)
+        writeValue(stream, value.toList())
+      }
+      is DatabaseKeyMessage -> {
+        stream.write(141)
+        writeValue(stream, value.toList())
+      }
+      is DeviceCapabilityMessage -> {
+        stream.write(142)
+        writeValue(stream, value.toList())
+      }
+      is LocalModelInfoMessage -> {
+        stream.write(143)
         writeValue(stream, value.toList())
       }
       else -> super.writeValue(stream, value)
@@ -1082,6 +1286,159 @@ class TtsFlutterApi(private val binaryMessenger: BinaryMessenger, private val me
         } else {
           continuation.resumeWithException(SaklazApiPigeonUtils.createConnectionError(channelName))
         } 
+      }
+    }
+  }
+}
+/** Generated interface from Pigeon that represents a handler of messages from Flutter. */
+interface KeyVaultHostApi {
+  fun getOrCreateDatabaseKey(): DatabaseKeyMessage
+
+  companion object {
+    /** The codec used by KeyVaultHostApi. */
+    val codec: MessageCodec<Any?> by lazy {
+      SaklazApiPigeonCodec()
+    }
+    /** Sets up an instance of `KeyVaultHostApi` to handle messages through the `binaryMessenger`. */
+    @JvmOverloads
+    fun setUp(binaryMessenger: BinaryMessenger, api: KeyVaultHostApi?, messageChannelSuffix: String = "") {
+      val separatedMessageChannelSuffix = if (messageChannelSuffix.isNotEmpty()) ".$messageChannelSuffix" else ""
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.saklaz_android_bridge.KeyVaultHostApi.getOrCreateDatabaseKey$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            val wrapped: List<Any?> = try {
+              listOf(api.getOrCreateDatabaseKey())
+            } catch (exception: Throwable) {
+              SaklazApiPigeonUtils.wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+    }
+  }
+}
+/** Generated interface from Pigeon that represents a handler of messages from Flutter. */
+interface NetworkHostApi {
+  /** Doğrulanmış (VALIDATED) internet bağlantısı varsa true. */
+  fun isOnline(): Boolean
+
+  companion object {
+    /** The codec used by NetworkHostApi. */
+    val codec: MessageCodec<Any?> by lazy {
+      SaklazApiPigeonCodec()
+    }
+    /** Sets up an instance of `NetworkHostApi` to handle messages through the `binaryMessenger`. */
+    @JvmOverloads
+    fun setUp(binaryMessenger: BinaryMessenger, api: NetworkHostApi?, messageChannelSuffix: String = "") {
+      val separatedMessageChannelSuffix = if (messageChannelSuffix.isNotEmpty()) ".$messageChannelSuffix" else ""
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.saklaz_android_bridge.NetworkHostApi.isOnline$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            val wrapped: List<Any?> = try {
+              listOf(api.isOnline())
+            } catch (exception: Throwable) {
+              SaklazApiPigeonUtils.wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+    }
+  }
+}
+/** Generated interface from Pigeon that represents a handler of messages from Flutter. */
+interface LocalAiHostApi {
+  fun getDeviceCapability(): DeviceCapabilityMessage
+  suspend fun checkModel(): LocalModelInfoMessage
+  /** Yalnızca kullanıcı açıkça isterse çağrılır (sistem modeli indirir). */
+  suspend fun downloadModel(): LocalModelInfoMessage
+  suspend fun generate(prompt: String, maxOutputTokens: Long, temperature: Double): String
+
+  companion object {
+    /** The codec used by LocalAiHostApi. */
+    val codec: MessageCodec<Any?> by lazy {
+      SaklazApiPigeonCodec()
+    }
+    /** Sets up an instance of `LocalAiHostApi` to handle messages through the `binaryMessenger`. */
+    @JvmOverloads
+    fun setUp(binaryMessenger: BinaryMessenger, api: LocalAiHostApi?, messageChannelSuffix: String = "") {
+      val separatedMessageChannelSuffix = if (messageChannelSuffix.isNotEmpty()) ".$messageChannelSuffix" else ""
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.saklaz_android_bridge.LocalAiHostApi.getDeviceCapability$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            val wrapped: List<Any?> = try {
+              listOf(api.getDeviceCapability())
+            } catch (exception: Throwable) {
+              SaklazApiPigeonUtils.wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.saklaz_android_bridge.LocalAiHostApi.checkModel$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            CoroutineScope(Dispatchers.Main).launch {
+              val wrapped: List<Any?> = try {
+                listOf(api.checkModel())
+              } catch (exception: Throwable) {
+                SaklazApiPigeonUtils.wrapError(exception)
+              }
+              reply.reply(wrapped)
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.saklaz_android_bridge.LocalAiHostApi.downloadModel$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            CoroutineScope(Dispatchers.Main).launch {
+              val wrapped: List<Any?> = try {
+                listOf(api.downloadModel())
+              } catch (exception: Throwable) {
+                SaklazApiPigeonUtils.wrapError(exception)
+              }
+              reply.reply(wrapped)
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.saklaz_android_bridge.LocalAiHostApi.generate$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val promptArg = args[0] as String
+            val maxOutputTokensArg = args[1] as Long
+            val temperatureArg = args[2] as Double
+            CoroutineScope(Dispatchers.Main).launch {
+              val wrapped: List<Any?> = try {
+                listOf(api.generate(promptArg, maxOutputTokensArg, temperatureArg))
+              } catch (exception: Throwable) {
+                SaklazApiPigeonUtils.wrapError(exception)
+              }
+              reply.reply(wrapped)
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
       }
     }
   }

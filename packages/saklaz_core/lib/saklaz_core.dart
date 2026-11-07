@@ -5,3 +5,4 @@ export 'src/chat_message.dart';
 export 'src/failure.dart';
 export 'src/logger.dart';
 export 'src/result.dart';
+export 'src/text.dart';

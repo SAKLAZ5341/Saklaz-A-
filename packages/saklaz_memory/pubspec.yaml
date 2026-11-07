@@ -9,6 +9,7 @@ environment:
 
 dependencies:
   saklaz_core: any
+  sqlite3: ^3.9.0
 
 dev_dependencies:
   lints: ^6.0.0

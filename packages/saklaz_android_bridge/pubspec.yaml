@@ -12,6 +12,7 @@ dependencies:
     sdk: flutter
   saklaz_core: any
   saklaz_voice: any
+  saklaz_ai_core: any
 
 dev_dependencies:
   flutter_test:

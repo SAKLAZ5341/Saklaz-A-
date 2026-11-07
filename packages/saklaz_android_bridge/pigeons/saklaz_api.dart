@@ -199,3 +199,86 @@ abstract class TtsHostApi {
 abstract class TtsFlutterApi {
   void onTtsEvent(TtsEventMessage event);
 }
+
+// ---------------------------------------------------------------------------
+// Anahtar kasası (Phase 2): veritabanı anahtarı Android Keystore ile sarılır
+// ---------------------------------------------------------------------------
+
+class DatabaseKeyMessage {
+  DatabaseKeyMessage({
+    required this.hexKey,
+    required this.hardwareBacked,
+    required this.databaseDirectory,
+  });
+
+  /// 256-bit rastgele anahtar (hex). Diske yalnızca Keystore ile şifreli yazılır.
+  String hexKey;
+
+  /// Sarma anahtarı donanım destekli (TEE/StrongBox) ise true.
+  bool hardwareBacked;
+
+  /// Yedeklenmeyen uygulama özel dizini (noBackupFilesDir).
+  String databaseDirectory;
+}
+
+@HostApi()
+abstract class KeyVaultHostApi {
+  DatabaseKeyMessage getOrCreateDatabaseKey();
+}
+
+// ---------------------------------------------------------------------------
+// Ağ durumu
+// ---------------------------------------------------------------------------
+
+@HostApi()
+abstract class NetworkHostApi {
+  /// Doğrulanmış (VALIDATED) internet bağlantısı varsa true.
+  bool isOnline();
+}
+
+// ---------------------------------------------------------------------------
+// Yerel AI (Gemini Nano / ML Kit GenAI Prompt API) ve cihaz kapasitesi
+// ---------------------------------------------------------------------------
+
+class DeviceCapabilityMessage {
+  DeviceCapabilityMessage({
+    required this.totalRamMb,
+    required this.availableRamMb,
+    required this.lowRamDevice,
+    required this.socManufacturer,
+    required this.socModel,
+    required this.abis,
+    required this.sdkInt,
+  });
+  int totalRamMb;
+  int availableRamMb;
+  bool lowRamDevice;
+  String socManufacturer;
+  String socModel;
+  List<String> abis;
+  int sdkInt;
+}
+
+enum LocalModelStatus { unavailable, downloadable, downloading, available, error }
+
+class LocalModelInfoMessage {
+  LocalModelInfoMessage({required this.status});
+  LocalModelStatus status;
+  String? baseModelName;
+  String? detail;
+}
+
+@HostApi()
+abstract class LocalAiHostApi {
+  DeviceCapabilityMessage getDeviceCapability();
+
+  @async
+  LocalModelInfoMessage checkModel();
+
+  /// Yalnızca kullanıcı açıkça isterse çağrılır (sistem modeli indirir).
+  @async
+  LocalModelInfoMessage downloadModel();
+
+  @async
+  String generate(String prompt, int maxOutputTokens, double temperature);
+}

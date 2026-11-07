@@ -3,4 +3,5 @@
 library;
 
 export 'src/assistant_platform.dart';
+export 'src/android_platform_services.dart';
 export 'src/android_voice_adapters.dart';

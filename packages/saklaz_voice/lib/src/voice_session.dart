@@ -39,6 +39,8 @@ class VoiceSession {
 
   final _states = StreamController<VoiceState>.broadcast();
   final _transcripts = StreamController<String>.broadcast();
+  final _errors = StreamController<SpeechError>.broadcast();
+  Completer<void>? _utteranceDone;
 
   VoiceState _state = const VoiceState();
   TtsInitResult? _ttsInit;
@@ -52,6 +54,11 @@ class VoiceSession {
   Stream<String> get transcripts => _transcripts.stream;
 
   TtsInitResult? get ttsInfo => _ttsInit;
+
+  /// Konuşma tanıma hataları (kod ile). Konuşma modu yeniden deneme kararı için kullanır.
+  Stream<SpeechError> get errors => _errors.stream;
+
+  bool get isSpeaking => _currentUtterance != null;
 
   void _emit(VoiceState s) {
     _state = s;
@@ -120,14 +127,32 @@ class VoiceSession {
       return;
     }
     final id = 'u${++_utteranceSeq}';
+    _completeUtterance();
     _currentUtterance = id;
+    _utteranceDone = Completer<void>();
     _emit(const VoiceState(phase: VoicePhase.speaking));
     await _tts.speak(id, text, rate: rate, pitch: pitch);
+  }
+
+  /// Konuşur ve konuşma bitene (veya durdurulana) kadar bekler.
+  Future<void> speakToEnd(String text, {double rate = 1.0, double pitch = 1.0}) async {
+    await speak(text, rate: rate, pitch: pitch);
+    final done = _utteranceDone;
+    if (done != null) {
+      await done.future.timeout(const Duration(minutes: 3), onTimeout: () {});
+    }
+  }
+
+  void _completeUtterance() {
+    final c = _utteranceDone;
+    _utteranceDone = null;
+    if (c != null && !c.isCompleted) c.complete();
   }
 
   Future<void> stopSpeaking() async {
     await _tts.stop();
     _currentUtterance = null;
+    _completeUtterance();
     if (_state.phase == VoicePhase.speaking) _emit(const VoiceState());
   }
 
@@ -152,6 +177,7 @@ class VoiceSession {
       case SpeechError(:final code, :final message):
         _log.w(_tag, 'STT hatası $code: $message');
         _emit(VoiceState(errorMessage: message));
+        _errors.add(e);
     }
   }
 
@@ -162,9 +188,11 @@ class VoiceSession {
         break;
       case TtsEventKind.done || TtsEventKind.stopped:
         _currentUtterance = null;
+        _completeUtterance();
         if (_state.phase == VoicePhase.speaking) _emit(const VoiceState());
       case TtsEventKind.error:
         _currentUtterance = null;
+        _completeUtterance();
         _emit(const VoiceState(errorMessage: 'Sesli yanıt oynatılamadı.'));
     }
   }
@@ -180,5 +208,6 @@ class VoiceSession {
     await _ttsSub.cancel();
     await _states.close();
     await _transcripts.close();
+    await _errors.close();
   }
 }

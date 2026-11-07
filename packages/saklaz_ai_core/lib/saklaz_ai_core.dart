@@ -1,9 +1,16 @@
-/// SAKLAZ AI Core.
+/// SAKLAZ AI Core — iki beyinli mimari.
 ///
-/// Phase 1: Yalnızca arayüz ve yapay zekâ İÇERMEYEN, yerel, kural tabanlı bir
-/// yer tutucu ([OfflinePlaceholderBrain]). Gerçek yerel LLM ve OpenAI
-/// Responses API (gateway üzerinden) Phase 4'te eklenecek.
+///  * Yerel: kural tabanlı niyet motoru + yerel hafıza + (varsa) cihaz içi LLM
+///  * Bulut: OpenAI Responses API, YALNIZCA SAKLAZ Gateway üzerinden
+///
+/// [AssistantRouter] hangi beynin kullanılacağına karar verir;
+/// [SaklazAssistant] kararı uygular.
 library;
 
-export 'src/assistant_brain.dart';
-export 'src/offline_placeholder_brain.dart';
+export 'src/assistant_engine.dart';
+export 'src/gateway_client.dart';
+export 'src/http_transport.dart';
+export 'src/llm.dart';
+export 'src/local_intent_engine.dart';
+export 'src/local_llm.dart';
+export 'src/router.dart';

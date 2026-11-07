@@ -13,3 +13,10 @@ workspace:
   - packages/saklaz_voice
   - packages/saklaz_android_bridge
   - packages/saklaz_integrations
+
+# Kişisel hafıza şifrelemesi: package:sqlite3 hook'u SQLite3MultipleCiphers
+# (MIT lisanslı, ChaCha20-Poly1305) derlemesini paketler. Bkz. SECURITY.md §3.
+hooks:
+  user_defines:
+    sqlite3:
+      source: sqlite3mc

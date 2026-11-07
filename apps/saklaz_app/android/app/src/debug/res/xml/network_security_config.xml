@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- YALNIZCA DEBUG: yerel ağdaki geliştirme gateway'ine (http://192.168.x.x:8787)
+     bağlanabilmek için şifresiz trafiğe izin verilir. Release yapısında
+     main/res/xml/network_security_config.xml geçerlidir (HTTP yasak). -->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>

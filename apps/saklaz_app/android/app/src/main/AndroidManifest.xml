@@ -4,6 +4,12 @@
          bastığında veya asistanı bilinçli olarak çağırdığında kullanılır. -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
+    <!-- Phase 2: yalnızca kullanıcı bulut zekâsına izin verdiğinde SAKLAZ Gateway (HTTPS).
+         OpenAI anahtarı uygulamada YOKTUR; gateway sunucusundadır. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Normal izin: çevrimdışıyken bulutu denemeden yerel moda geçmek için. -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
     <application
         android:name="${applicationName}"
         android:label="SAKLAZ"

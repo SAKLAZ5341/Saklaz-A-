@@ -3,6 +3,7 @@ package com.saklaz.assistant
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
+import com.saklaz.assistant.ai.LocalAiController
 import com.saklaz.assistant.assist.AssistantRoleController
 import com.saklaz.assistant.assist.MicPermissionController
 import com.saklaz.assistant.bridge.AssistLaunchFlutterApi
@@ -10,11 +11,16 @@ import com.saklaz.assistant.bridge.AssistLaunchHostApi
 import com.saklaz.assistant.bridge.AssistLaunchMessage
 import com.saklaz.assistant.bridge.AssistLaunchSource
 import com.saklaz.assistant.bridge.AssistantRoleHostApi
+import com.saklaz.assistant.bridge.KeyVaultHostApi
+import com.saklaz.assistant.bridge.LocalAiHostApi
+import com.saklaz.assistant.bridge.NetworkHostApi
 import com.saklaz.assistant.bridge.PermissionHostApi
 import com.saklaz.assistant.bridge.SpeechFlutterApi
 import com.saklaz.assistant.bridge.SpeechHostApi
 import com.saklaz.assistant.bridge.TtsFlutterApi
 import com.saklaz.assistant.bridge.TtsHostApi
+import com.saklaz.assistant.net.NetworkController
+import com.saklaz.assistant.security.KeyVaultController
 import com.saklaz.assistant.voice.SpeechController
 import com.saklaz.assistant.voice.TtsController
 import io.flutter.embedding.android.FlutterActivity
@@ -39,6 +45,7 @@ class MainActivity : FlutterActivity() {
     private lateinit var micController: MicPermissionController
     private var speech: SpeechController? = null
     private var tts: TtsController? = null
+    private var localAi: LocalAiController? = null
     private var assistApi: AssistLaunchFlutterApi? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -69,6 +76,10 @@ class MainActivity : FlutterActivity() {
         PermissionHostApi.setUp(messenger, micController)
         SpeechHostApi.setUp(messenger, speech)
         TtsHostApi.setUp(messenger, tts)
+        localAi = LocalAiController(applicationContext)
+        KeyVaultHostApi.setUp(messenger, KeyVaultController(applicationContext))
+        NetworkHostApi.setUp(messenger, NetworkController(applicationContext))
+        LocalAiHostApi.setUp(messenger, localAi)
         AssistLaunchHostApi.setUp(
             messenger,
             object : AssistLaunchHostApi {
@@ -87,6 +98,10 @@ class MainActivity : FlutterActivity() {
         SpeechHostApi.setUp(messenger, null)
         TtsHostApi.setUp(messenger, null)
         AssistLaunchHostApi.setUp(messenger, null)
+        KeyVaultHostApi.setUp(messenger, null)
+        NetworkHostApi.setUp(messenger, null)
+        LocalAiHostApi.setUp(messenger, null)
+        localAi?.release()
         speech?.release()
         tts?.release()
         super.cleanUpFlutterEngine(flutterEngine)

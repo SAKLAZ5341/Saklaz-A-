@@ -158,6 +158,38 @@ void main() {
     expect(s.state.errorMessage, isNotNull);
   });
 
+  test('speakToEnd konuşma bitene kadar bekler', () async {
+    final s = make(FakePerm(MicPermission.granted));
+    var finished = false;
+    final f = s.speakToEnd('uzun cümle').then((_) => finished = true);
+    await Future<void>.delayed(Duration.zero);
+    expect(finished, isFalse);
+    expect(s.isSpeaking, isTrue);
+    tts.controller.add(const TtsEvent(TtsEventKind.done, 'u1'));
+    await f;
+    expect(finished, isTrue);
+    expect(s.isSpeaking, isFalse);
+  });
+
+  test('stopSpeaking bekleyen speakToEnd çağrısını serbest bırakır', () async {
+    final s = make(FakePerm(MicPermission.granted));
+    final f = s.speakToEnd('x');
+    await Future<void>.delayed(Duration.zero);
+    await s.stopSpeaking();
+    await f; // askıda kalmamalı
+    expect(s.state.phase, VoicePhase.idle);
+  });
+
+  test('STT hataları kodlarıyla errors akışında yayınlanır', () async {
+    final s = make(FakePerm(MicPermission.granted));
+    final codes = <int>[];
+    s.errors.listen((e) => codes.add(e.code));
+    await s.startListening();
+    stt.controller.add(const SpeechError(6, 'Konuşma algılanmadı'));
+    await Future<void>.delayed(Duration.zero);
+    expect(codes, [6]);
+  });
+
   test('normalizeRms sınırları', () {
     expect(VoiceSession.normalizeRms(-10), 0);
     expect(VoiceSession.normalizeRms(4), 0.5);
