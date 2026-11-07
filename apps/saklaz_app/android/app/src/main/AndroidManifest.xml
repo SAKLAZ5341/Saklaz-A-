@@ -1,0 +1,100 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Tek tehlikeli izin: mikrofon. Yalnızca kullanıcı mikrofon düğmesine
+         bastığında veya asistanı bilinçli olarak çağırdığında kullanılır. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
+    <application
+        android:name="${applicationName}"
+        android:label="SAKLAZ"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher"
+        android:allowBackup="false"
+        android:fullBackupContent="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:networkSecurityConfig="@xml/network_security_config"
+        android:enableOnBackInvokedCallback="true">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:taskAffinity=""
+            android:theme="@style/LaunchTheme"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+            android:hardwareAccelerated="true"
+            android:resizeableActivity="true"
+            android:windowSoftInputMode="adjustResize">
+            <meta-data
+                android:name="io.flutter.embedding.android.NormalTheme"
+                android:resource="@style/NormalTheme" />
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <!-- Yedek asistan giriş noktası: android.intent.action.ASSIST -->
+            <intent-filter>
+                <action android:name="android.intent.action.ASSIST" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
+        <!-- ===== Android dijital asistan altyapısı (ROLE_ASSISTANT) ===== -->
+
+        <!-- Sistemin bağlandığı ana servis. BIND_VOICE_INTERACTION yalnızca
+             sistemin tutabildiği bir izindir; başka uygulama bağlanamaz. -->
+        <service
+            android:name=".assist.SaklazVoiceInteractionService"
+            android:exported="true"
+            android:label="SAKLAZ"
+            android:permission="android.permission.BIND_VOICE_INTERACTION">
+            <meta-data
+                android:name="android.voice_interaction"
+                android:resource="@xml/interaction_service" />
+            <intent-filter>
+                <action android:name="android.service.voice.VoiceInteractionService" />
+            </intent-filter>
+        </service>
+
+        <!-- Asistan çağrıldığında oturum oluşturan servis. -->
+        <service
+            android:name=".assist.SaklazSessionService"
+            android:exported="true"
+            android:permission="android.permission.BIND_VOICE_INTERACTION" />
+
+        <!-- interaction_service.xml için zorunlu tanıma servisi. Asistan rolü
+             alındığında sistemin varsayılan tanıyıcısı buna yönlenir; bu yüzden
+             cihazdaki gerçek bir tanıyıcıya vekalet eder (diğer uygulamaların
+             sesli girişi bozulmaz). -->
+        <service
+            android:name=".assist.SaklazRecognitionService"
+            android:exported="true"
+            android:label="SAKLAZ">
+            <intent-filter>
+                <action android:name="android.speech.RecognitionService" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <meta-data
+                android:name="android.speech"
+                android:resource="@xml/recognition_service" />
+        </service>
+
+        <meta-data
+            android:name="flutterEmbedding"
+            android:value="2" />
+    </application>
+
+    <!-- Android 11+ paket görünürlüğü: yalnızca ses tanıma ve TTS motorları. -->
+    <queries>
+        <intent>
+            <action android:name="android.speech.RecognitionService" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.TTS_SERVICE" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.PROCESS_TEXT" />
+            <data android:mimeType="text/plain" />
+        </intent>
+    </queries>
+</manifest>

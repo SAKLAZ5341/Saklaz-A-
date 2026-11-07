@@ -1,0 +1,29 @@
+name: saklaz_app
+description: "SAKLAZ AI - Turkce kisisel yapay zeka asistani (Android)."
+publish_to: none
+version: 0.1.0+1
+resolution: workspace
+
+environment:
+  sdk: ^3.13.5
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  saklaz_core: any
+  saklaz_ai_core: any
+  saklaz_memory: any
+  saklaz_voice: any
+  saklaz_android_bridge: any
+  saklaz_integrations: any
+  flutter_riverpod: ^3.5.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  lints: ^6.0.0
+
+flutter:
+  uses-material-design: true

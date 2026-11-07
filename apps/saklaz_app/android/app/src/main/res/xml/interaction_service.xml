@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- VoiceInteractionServiceInfo: sessionService ve recognitionService zorunludur.
+     supportsAssist="true": asistan rolüne aday olmak için gereklidir.
+     Güvenlik: kilit ekranından çağrılma şimdilik kapalı (SECURITY.md §5). -->
+<voice-interaction-service xmlns:android="http://schemas.android.com/apk/res/android"
+    android:sessionService="com.saklaz.assistant.assist.SaklazSessionService"
+    android:recognitionService="com.saklaz.assistant.assist.SaklazRecognitionService"
+    android:settingsActivity="com.saklaz.assistant.MainActivity"
+    android:supportsAssist="true"
+    android:supportsLaunchVoiceAssistFromKeyguard="false"
+    android:supportsLocalInteraction="false" />
