@@ -1,0 +1,45 @@
+# --- Gizli bilgiler (ASLA commit edilmez) ---
+.env
+.env.*
+!.env.example
+*.jks
+*.keystore
+key.properties
+google-services.json
+client_secret*.json
+secrets/
+
+# --- Flutter / Dart ---
+.dart_tool/
+.packages
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+pubspec_overrides.yaml
+coverage/
+
+# --- Android ---
+local.properties
+.gradle/
+.cxx/
+*.apk
+*.aab
+captures/
+
+# --- Node (gateway) ---
+node_modules/
+dist/
+
+# --- IDE / OS ---
+.idea/
+*.iml
+.vscode/
+.DS_Store
+Thumbs.db
+
+# --- Yerel modeller / loglar ---
+*.gguf
+*.task
+*.litertlm
+logs/
+*.log
