@@ -12,7 +12,7 @@ class MemorySearch {
     if (q.isEmpty) return const [];
     final scored = <(MemoryFact, double)>[];
     for (final f in facts) {
-      final words = keywordsTr(f.text);
+      final words = keywordsTr('${f.category.label} ${f.text}');
       var score = 0.0;
       for (final w in q) {
         if (words.contains(w)) {

@@ -25,4 +25,17 @@ class InMemoryConversationRepository implements ConversationRepository {
 
   @override
   Future<void> clear() async => _messages.clear();
+
+  @override
+  Future<List<ChatMessage>> search(String query, {int limit = 30}) async {
+    final q = keywordsTr(query);
+    if (q.isEmpty) return const [];
+    return _messages.reversed
+        .where((m) {
+          final k = keywordsTr(m.text);
+          return q.every((w) => k.any((x) => x.startsWith(w)));
+        })
+        .take(limit)
+        .toList();
+  }
 }

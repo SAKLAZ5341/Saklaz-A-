@@ -22,26 +22,35 @@ final speechRecognizerProvider = Provider<SpeechRecognizerPort>((ref) => Android
 final speechSynthesizerProvider = Provider<SpeechSynthesizerPort>((ref) => AndroidSpeechSynthesizer());
 final keyVaultProvider = Provider<KeyVault>((ref) => AndroidKeyVault());
 final networkStatusProvider = Provider<NetworkStatus>((ref) => AndroidNetworkStatus());
-final localLlmProvider = Provider<LocalLlm>((ref) => AndroidLocalLlm());
 final httpTransportProvider = Provider<HttpTransport>((ref) => IoHttpTransport());
+final secretStoreProvider = Provider<SecretStore>((ref) => AndroidSecretStore());
+final modelManagerProvider = Provider<ModelManager>((ref) => AndroidModelManager());
+final localLlmProvider = Provider<LocalLlm>((ref) => AndroidLocalLlm());
+final devicePortsProvider = Provider<DevicePorts>((ref) => AndroidDevicePorts());
+final documentReaderProvider = Provider<DocumentReader>((ref) => AndroidDocumentReader());
 
 // ---- Hafıza ----
 
 /// Açılmış hafıza depoları ve şifreleme durumu.
 class MemoryStores {
-  const MemoryStores({
+  MemoryStores({
     required this.conversations,
     required this.facts,
     required this.preferences,
     required this.initialPreferences,
     required this.encrypted,
+    NoteRepository? notes,
+    ReminderRepository? reminders,
     this.cipherVersion,
     this.hardwareBackedKey = false,
     this.error,
-  });
+  })  : notes = notes ?? InMemoryNoteRepository(),
+        reminders = reminders ?? InMemoryReminderRepository();
 
   final ConversationRepository conversations;
   final FactRepository facts;
+  final NoteRepository notes;
+  final ReminderRepository reminders;
   final PreferencesStore preferences;
   final Map<String, String> initialPreferences;
 
@@ -49,8 +58,6 @@ class MemoryStores {
   final bool encrypted;
   final String? cipherVersion;
   final bool hardwareBackedKey;
-
-  /// Şifreli depolama açılamadıysa nedeni (kullanıcıya gösterilir).
   final String? error;
 
   static MemoryStores inMemory({String? error}) => MemoryStores(
@@ -63,8 +70,7 @@ class MemoryStores {
       );
 }
 
-/// Şifreli hafızayı açar. Şifreleme doğrulanamazsa diske HİÇBİR ŞEY yazmaz
-/// (fail-closed) ve bellek içi depolarla devam eder.
+/// Şifreli hafızayı açar. Şifreleme doğrulanamazsa diske HİÇBİR ŞEY yazmaz.
 final memoryStoresProvider = FutureProvider<MemoryStores>((ref) async {
   final log = ref.read(loggerProvider);
   try {
@@ -75,6 +81,8 @@ final memoryStoresProvider = FutureProvider<MemoryStores>((ref) async {
     return MemoryStores(
       conversations: db,
       facts: db.facts,
+      notes: db.notes,
+      reminders: db.reminders,
       preferences: db,
       initialPreferences: await db.readAll(),
       encrypted: true,

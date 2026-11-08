@@ -1,52 +1,61 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:saklaz_ai_core/saklaz_ai_core.dart';
 
 import '../infrastructure/providers.dart';
+import 'model_catalog.dart';
 
-/// Kullanıcı tercihleri. Şifreli hafızadaki `preferences` tablosunda kalıcıdır
-/// (şifreleme yoksa yalnızca bellekte).
+/// Kullanıcı tercihleri. Şifreli hafızadaki `preferences` tablosunda kalıcıdır.
+/// API anahtarları BURADA DEĞİL, Keystore destekli güvenli depoda saklanır.
 class AppSettings {
-  const AppSettings({
+  AppSettings({
     this.voiceReplies = true,
     this.listenOnAssistInvoke = false,
     this.preferOnDeviceRecognition = true,
     this.speechRate = 1.0,
     this.speechPitch = 1.0,
-    this.useLocalLlm = true,
-    this.cloudMode = CloudMode.ask,
-    this.gatewayUrl = '',
-    this.gatewayToken = '',
-    this.cloudModel = '',
+    this.autoLearn = true,
+    this.preferGpu = true,
+    String? activeModelId,
+    this.activeProvider,
+    this.cloudConsent = CloudMode.ask,
     this.shareFactsWithCloud = false,
-  });
+    Map<ProviderKind, ProviderSettings>? providers,
+  })  : activeModelId = activeModelId ?? modelCatalog.firstWhere((m) => m.recommended).id,
+        providers = providers ?? {for (final k in ProviderKind.values) k: ProviderSettings(kind: k)};
 
-  /// Yanıtları sesli oku (dinlemeden bağımsız).
   final bool voiceReplies;
 
-  /// Yan tuşla çağrılınca konuşmayı otomatik başlat. Varsayılan KAPALI:
-  /// mikrofon yalnızca "Konuşmayı Başlat" ile açılır.
+  /// Yan tuşla çağrılınca konuşmayı otomatik başlat. Varsayılan KAPALI.
   final bool listenOnAssistInvoke;
   final bool preferOnDeviceRecognition;
   final double speechRate;
   final double speechPitch;
 
-  /// Cihaz içi dil modelini (Gemini Nano) kullan.
-  final bool useLocalLlm;
-  final CloudMode cloudMode;
-  final String gatewayUrl;
+  /// Konuşmalardan otomatik kişisel bilgi öğrenme.
+  final bool autoLearn;
+  final bool preferGpu;
+  final String activeModelId;
 
-  /// Gateway cihaz tokenı (OpenAI anahtarı DEĞİL). Şifreli hafızada saklanır.
-  final String gatewayToken;
+  /// null = Yerel AI (varsayılan). Bulut yalnızca kullanıcı seçip etkinleştirirse.
+  final ProviderKind? activeProvider;
 
-  /// Boşsa gateway varsayılan modeli.
-  final String cloudModel;
-
-  /// İlgili kayıtlı kişisel bilgiler bulut isteğine bağlam olarak eklensin mi?
+  /// Bulut sağlayıcısı etkinken: her seferinde sor / sormadan gönder.
+  final CloudMode cloudConsent;
   final bool shareFactsWithCloud;
+  final Map<ProviderKind, ProviderSettings> providers;
 
-  GatewayConfig get gatewayConfig => GatewayConfig(baseUrl: gatewayUrl, deviceToken: gatewayToken, model: cloudModel);
+  ProviderSettings provider(ProviderKind k) => providers[k] ?? ProviderSettings(kind: k);
+
+  /// Etkin ve seçili bulut sağlayıcısı (yoksa null => tamamen yerel).
+  ProviderSettings? get activeCloud {
+    final k = activeProvider;
+    if (k == null) return null;
+    final p = provider(k);
+    return p.enabled ? p : null;
+  }
 
   AppSettings copyWith({
     bool? voiceReplies,
@@ -54,12 +63,14 @@ class AppSettings {
     bool? preferOnDeviceRecognition,
     double? speechRate,
     double? speechPitch,
-    bool? useLocalLlm,
-    CloudMode? cloudMode,
-    String? gatewayUrl,
-    String? gatewayToken,
-    String? cloudModel,
+    bool? autoLearn,
+    bool? preferGpu,
+    String? activeModelId,
+    ProviderKind? activeProvider,
+    bool clearActiveProvider = false,
+    CloudMode? cloudConsent,
     bool? shareFactsWithCloud,
+    ProviderSettings? providerUpdate,
   }) =>
       AppSettings(
         voiceReplies: voiceReplies ?? this.voiceReplies,
@@ -67,12 +78,13 @@ class AppSettings {
         preferOnDeviceRecognition: preferOnDeviceRecognition ?? this.preferOnDeviceRecognition,
         speechRate: speechRate ?? this.speechRate,
         speechPitch: speechPitch ?? this.speechPitch,
-        useLocalLlm: useLocalLlm ?? this.useLocalLlm,
-        cloudMode: cloudMode ?? this.cloudMode,
-        gatewayUrl: gatewayUrl ?? this.gatewayUrl,
-        gatewayToken: gatewayToken ?? this.gatewayToken,
-        cloudModel: cloudModel ?? this.cloudModel,
+        autoLearn: autoLearn ?? this.autoLearn,
+        preferGpu: preferGpu ?? this.preferGpu,
+        activeModelId: activeModelId ?? this.activeModelId,
+        activeProvider: clearActiveProvider ? null : (activeProvider ?? this.activeProvider),
+        cloudConsent: cloudConsent ?? this.cloudConsent,
         shareFactsWithCloud: shareFactsWithCloud ?? this.shareFactsWithCloud,
+        providers: providerUpdate == null ? providers : {...providers, providerUpdate.kind: providerUpdate},
       );
 
   Map<String, String> toPrefs() => {
@@ -81,30 +93,46 @@ class AppSettings {
         'preferOnDeviceRecognition': '$preferOnDeviceRecognition',
         'speechRate': '$speechRate',
         'speechPitch': '$speechPitch',
-        'useLocalLlm': '$useLocalLlm',
-        'cloudMode': cloudMode.name,
-        'gatewayUrl': gatewayUrl,
-        'gatewayToken': gatewayToken,
-        'cloudModel': cloudModel,
+        'autoLearn': '$autoLearn',
+        'preferGpu': '$preferGpu',
+        'activeModelId': activeModelId,
+        'activeProvider': activeProvider?.name ?? 'local',
+        'cloudConsent': cloudConsent.name,
         'shareFactsWithCloud': '$shareFactsWithCloud',
+        'providers': jsonEncode({for (final e in providers.entries) e.key.name: e.value.toJson()}),
       };
 
   static AppSettings fromPrefs(Map<String, String> p) {
-    const d = AppSettings();
+    final d = AppSettings();
     bool b(String k, bool def) => p[k] == null ? def : p[k] == 'true';
     double n(String k, double def) => double.tryParse(p[k] ?? '') ?? def;
+    final providers = <ProviderKind, ProviderSettings>{};
+    try {
+      final j = jsonDecode(p['providers'] ?? '{}') as Map<String, Object?>;
+      for (final k in ProviderKind.values) {
+        final v = j[k.name];
+        providers[k] = v is Map<String, Object?> ? ProviderSettings.fromJson(k, v) : ProviderSettings(kind: k);
+      }
+    } on Object {
+      // bozuk tercih -> varsayılanlar
+    }
+    // Phase 2 gateway ayarlarını taşı (yalnızca adres; etkinleştirme kullanıcıda).
+    if ((p['gatewayUrl'] ?? '').isNotEmpty && (providers[ProviderKind.gateway]?.baseUrl ?? '').isEmpty) {
+      providers[ProviderKind.gateway] = ProviderSettings(kind: ProviderKind.gateway, baseUrl: p['gatewayUrl']!);
+    }
     return AppSettings(
       voiceReplies: b('voiceReplies', d.voiceReplies),
       listenOnAssistInvoke: b('listenOnAssistInvoke', d.listenOnAssistInvoke),
       preferOnDeviceRecognition: b('preferOnDeviceRecognition', d.preferOnDeviceRecognition),
       speechRate: n('speechRate', d.speechRate),
       speechPitch: n('speechPitch', d.speechPitch),
-      useLocalLlm: b('useLocalLlm', d.useLocalLlm),
-      cloudMode: CloudMode.values.asNameMap()[p['cloudMode']] ?? d.cloudMode,
-      gatewayUrl: p['gatewayUrl'] ?? '',
-      gatewayToken: p['gatewayToken'] ?? '',
-      cloudModel: p['cloudModel'] ?? '',
+      autoLearn: b('autoLearn', d.autoLearn),
+      preferGpu: b('preferGpu', d.preferGpu),
+      activeModelId: modelById(p['activeModelId']) != null ? p['activeModelId'] : null,
+      activeProvider: ProviderKind.values.asNameMap()[p['activeProvider']],
+      cloudConsent: p['cloudConsent'] == 'always' ? CloudMode.always : CloudMode.ask,
       shareFactsWithCloud: b('shareFactsWithCloud', d.shareFactsWithCloud),
+      providers: providers.isEmpty ? null : providers,
     );
   }
 }

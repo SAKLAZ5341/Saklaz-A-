@@ -23,18 +23,10 @@ class ConversationState {
 
   final List<ChatMessage> messages;
   final VoiceState voice;
-
-  /// "Konuşmayı Başlat" ile açılan sürekli konuşma modu.
   final bool conversationActive;
-
-  /// Yanıt hazırlanıyor.
   final bool busy;
-
-  /// Kullanıcı kararı bekleyen işlem (hafızaya kayıt / bulut izni).
   final PendingAction? pending;
   final AssistInvocation? lastInvocation;
-
-  /// Konuşma modunun neden durduğu gibi kısa bilgi.
   final String? notice;
 
   ConversationState copyWith({
@@ -68,8 +60,6 @@ class ConversationState {
 ///  * Uygulama arka plana geçince ([onAppBackgrounded]) konuşma modu kapanır.
 class ConversationController extends Notifier<ConversationState> {
   static const _tag = 'Conversation';
-
-  /// Art arda sessizlik/anlaşılamama hatasında konuşma modu kapanır.
   static const maxSilentRetries = 2;
   int _silentRetries = 0;
   int _seq = 0;
@@ -85,7 +75,7 @@ class ConversationController extends Notifier<ConversationState> {
 
     final subs = <StreamSubscription<Object?>>[
       voice.states.listen((v) => state = state.copyWith(voice: v)),
-      voice.transcripts.listen((t) => unawaited(submitText(t))),
+      voice.transcripts.listen((t) => unawaited(submitText(t, fromVoice: true))),
       voice.errors.listen(_onSpeechError),
       platform.invocations.listen(_onInvocation),
     ];
@@ -122,27 +112,25 @@ class ConversationController extends Notifier<ConversationState> {
     state = state.copyWith(conversationActive: false, notice: reason, clearNotice: reason == null);
     await _voice.cancelListening();
     await _voice.stopSpeaking();
-    if (wasActive) _log.i(_tag, 'Konuşma modu durdu${reason == null ? '' : ': $reason'}');
+    if (wasActive) _log.i(_tag, 'Konuşma modu durdu');
   }
 
-  /// Uygulama arka plana geçti: mikrofon güvenlik gereği kapanır.
   Future<void> onAppBackgrounded() async {
     if (state.conversationActive || _voice.state.micActive || _voice.isSpeaking) {
       await stopConversation(reason: 'Uygulama arka plana geçtiği için konuşma durduruldu.');
     }
   }
 
+  /// Bekleyen karar varsa yalnızca sesle onaylanabiliyorsa dinlemeye devam eder.
   Future<void> _listen() async {
-    if (!state.conversationActive || state.pending != null) return;
+    final p = state.pending;
+    if (!state.conversationActive || (p != null && !p.voiceConfirmable)) return;
     final r = await _voice.startListening(preferOnDevice: ref.read(settingsProvider).preferOnDeviceRecognition);
-    if (!r.isOk) {
-      state = state.copyWith(conversationActive: false, notice: r.failureOrNull?.message);
-    }
+    if (!r.isOk) state = state.copyWith(conversationActive: false, notice: r.failureOrNull?.message);
   }
 
   void _onSpeechError(SpeechError e) {
     if (!state.conversationActive) return;
-    // 6: ERROR_SPEECH_TIMEOUT, 7: ERROR_NO_MATCH -> birkaç kez yeniden dinle.
     if ((e.code == 6 || e.code == 7) && _silentRetries < maxSilentRetries) {
       _silentRetries++;
       unawaited(_listen());
@@ -161,13 +149,28 @@ class ConversationController extends Notifier<ConversationState> {
 
   // ---------------------------------------------------------------- mesajlar
 
-  Future<void> submitText(String text) async {
+  Future<void> submitText(String text, {bool fromVoice = false}) async {
     final trimmed = text.trim();
     if (trimmed.isEmpty || state.busy) return;
     _silentRetries = 0;
-    final repo = ref.read(memoryProvider).conversations;
-    await repo.add(_msg(ChatRole.user, trimmed, MessageSource.user));
-    state = state.copyWith(messages: await repo.all(), busy: true, clearPending: true);
+
+    // Bekleyen karar + "evet/hayır" yanıtı
+    final p = state.pending;
+    if (p != null) {
+      final yn = YesNo.parse(trimmed);
+      if (yn != null) {
+        await _addMessage(ChatRole.user, trimmed, MessageSource.user);
+        if (fromVoice && !p.voiceConfirmable && yn) {
+          await _deliver(const AssistantTurn('Bu işlem için güvenlik gereği ekrandaki "Onayla" düğmesine dokunman gerekiyor.', MessageSource.system), keepPending: true);
+          return;
+        }
+        await resolvePending(accept: yn, alreadyEchoed: true);
+        return;
+      }
+    }
+
+    await _addMessage(ChatRole.user, trimmed, MessageSource.user);
+    state = state.copyWith(busy: true, clearPending: true);
     _voice.markThinking();
 
     AssistantTurn turn;
@@ -181,7 +184,7 @@ class ConversationController extends Notifier<ConversationState> {
   }
 
   /// Bekleyen işlemi onayla/reddet.
-  Future<void> resolvePending({required bool accept, bool preferLocal = false}) async {
+  Future<void> resolvePending({required bool accept, bool preferLocal = false, bool alreadyEchoed = false}) async {
     final p = state.pending;
     if (p == null || state.busy) return;
     state = state.copyWith(clearPending: true, busy: true);
@@ -194,19 +197,67 @@ class ConversationController extends Notifier<ConversationState> {
         ConfirmRemember() => const AssistantTurn('Tamam, kaydetmedim.', MessageSource.memory),
         ConfirmCloud() when accept => await assistant.answerWithCloud(p, state.messages),
         ConfirmCloud() when preferLocal => await assistant.answerLocally(p, state.messages),
-        ConfirmCloud() => const AssistantTurn('Tamam, buluta göndermedim.', MessageSource.system),
+        ConfirmCloud() => const AssistantTurn('Tamam, göndermedim.', MessageSource.system),
+        ConfirmAgentAction(:final action) when accept => await assistant.execute(action),
+        ConfirmAgentAction() => const AssistantTurn('Tamam, iptal ettim.', MessageSource.localRules),
       };
+      if (p is ConfirmAgentAction && accept) _log.log(LogLevel.audit, _tag, 'Agent eylemi onaylandı: ${p.action.runtimeType}');
     } on Object catch (e) {
       _log.e(_tag, 'Bekleyen işlem hatası', error: e);
-      turn = const AssistantTurn('Beklenmeyen bir hata oluştu.', MessageSource.system);
+      turn = AssistantTurn('İşlem tamamlanamadı: ${e is PermissionDenied ? 'izin gerekli' : 'beklenmeyen hata'}.', MessageSource.system);
     }
     await _deliver(turn);
   }
 
-  Future<void> _deliver(AssistantTurn turn) async {
+  /// Seçilen dosya veya fotoğrafı yerel olarak analiz ettir (metin/etiketler cihazda çıkarıldı).
+  Future<void> analyzeDocument(DocumentContent doc) async {
+    final name = doc.name ?? (doc.kind == 'image' ? 'Fotoğraf' : 'Belge');
+    final body = doc.text.trim();
+    final excerpt = body.length > 3000 ? '${body.substring(0, 3000)}…' : body;
+    final String prompt;
+    if (doc.kind == 'image') {
+      prompt = 'Bir fotoğraf paylaştım. Cihaz içi görüntü analizi şunları buldu: '
+          '${doc.labels.isEmpty ? 'belirgin nesne yok' : doc.labels.join(', ')}.'
+          '${excerpt.isEmpty ? '' : ' Fotoğraftaki yazı: "$excerpt".'} Bunu kısaca Türkçe açıkla.';
+    } else {
+      if (excerpt.isEmpty) {
+        await _addMessage(ChatRole.user, '📄 $name', MessageSource.user);
+        await _deliver(const AssistantTurn('Bu dosyadan okunabilir metin çıkarılamadı.', MessageSource.system));
+        return;
+      }
+      prompt = 'Şu belgeyi kısaca özetle ve önemli noktalarını söyle:\n$excerpt';
+    }
+    await _addMessage(ChatRole.user, '${doc.kind == 'image' ? '🖼' : '📄'} $name\n${excerpt.length > 300 ? '${excerpt.substring(0, 300)}…' : excerpt}', MessageSource.user);
+    state = state.copyWith(busy: true, clearPending: true);
+    _voice.markThinking();
+    AssistantTurn turn;
+    try {
+      turn = await ref.read(assistantProvider).respond(prompt, const []);
+    } on Object catch (e) {
+      _log.e(_tag, 'Belge analizi hatası', error: e);
+      turn = const AssistantTurn('Belge analiz edilemedi.', MessageSource.system);
+    }
+    await _deliver(turn);
+  }
+
+  Future<void> _addMessage(ChatRole role, String text, MessageSource source) async {
     final repo = ref.read(memoryProvider).conversations;
+    await repo.add(_msg(role, text, source));
+    state = state.copyWith(messages: await repo.all());
+  }
+
+  Future<void> _deliver(AssistantTurn turn, {bool keepPending = false}) async {
+    final repo = ref.read(memoryProvider).conversations;
+    final pending = keepPending ? state.pending : turn.pending;
     await repo.add(_msg(ChatRole.assistant, turn.text, turn.source));
-    state = state.copyWith(messages: await repo.all(), busy: false, pending: turn.pending);
+    if (turn.learned.isNotEmpty) {
+      await repo.add(_msg(
+        ChatRole.system,
+        '🧠 Hafızama ekledim: ${turn.learned.map((f) => '${f.category.label} — ${f.text}').join('; ')}',
+        MessageSource.memory,
+      ));
+    }
+    state = state.copyWith(messages: await repo.all(), busy: false, pending: pending, clearPending: pending == null);
 
     final s = ref.read(settingsProvider);
     if (s.voiceReplies) {
@@ -219,11 +270,9 @@ class ConversationController extends Notifier<ConversationState> {
     } else {
       _voice.markIdle();
     }
-    // Konuşma modu sürüyorsa ve karar bekleyen işlem yoksa tekrar dinle.
-    if (state.conversationActive && state.pending == null) await _listen();
+    if (state.conversationActive) await _listen();
   }
 
-  /// Bir yanıtı tekrar sesli dinlet (sesli yanıt kapalı olsa bile kullanıcı ister).
   Future<void> replay(ChatMessage m) async {
     if (state.voice.micActive) await _voice.cancelListening();
     final s = ref.read(settingsProvider);
@@ -246,5 +295,4 @@ class ConversationController extends Notifier<ConversationState> {
       );
 }
 
-final conversationProvider =
-    NotifierProvider<ConversationController, ConversationState>(ConversationController.new);
+final conversationProvider = NotifierProvider<ConversationController, ConversationState>(ConversationController.new);

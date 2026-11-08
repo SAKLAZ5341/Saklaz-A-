@@ -145,12 +145,38 @@ enum TtsEventType {
   error;
 }
 
-enum LocalModelStatus {
-  unavailable,
-  downloadable,
-  downloading,
-  available,
-  error;
+enum DownloadState {
+  running,
+  verifying,
+  completed,
+  failed,
+  cancelled;
+}
+
+enum LlmEngineState {
+  notLoaded,
+  loading,
+  ready,
+  failed;
+}
+
+enum SettingsPage {
+  wifi,
+  bluetooth,
+  display,
+  sound,
+  battery,
+  location,
+  apps,
+  notifications,
+  appDetails,
+  main;
+}
+
+enum RuntimePermission {
+  contacts,
+  calendar,
+  notifications;
 }
 
 /// RoleManager'dan okunan gerçek durum. Uygulama bu değerleri tahmin etmez.
@@ -571,6 +597,7 @@ class DeviceCapabilityMessage {
     required this.socModel,
     required this.abis,
     required this.sdkInt,
+    required this.freeStorageMb,
   });
 
   int totalRamMb;
@@ -587,6 +614,8 @@ class DeviceCapabilityMessage {
 
   int sdkInt;
 
+  int freeStorageMb;
+
   List<Object?> _toList() {
     return <Object?>[
       totalRamMb,
@@ -596,6 +625,7 @@ class DeviceCapabilityMessage {
       socModel,
       abis,
       sdkInt,
+      freeStorageMb,
     ];
   }
 
@@ -612,6 +642,7 @@ class DeviceCapabilityMessage {
       socModel: result[4]! as String,
       abis: (result[5]! as List<Object?>).cast<String>(),
       sdkInt: result[6]! as int,
+      freeStorageMb: result[7]! as int,
     );
   }
 
@@ -624,7 +655,7 @@ class DeviceCapabilityMessage {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(totalRamMb, other.totalRamMb) && _deepEquals(availableRamMb, other.availableRamMb) && _deepEquals(lowRamDevice, other.lowRamDevice) && _deepEquals(socManufacturer, other.socManufacturer) && _deepEquals(socModel, other.socModel) && _deepEquals(abis, other.abis) && _deepEquals(sdkInt, other.sdkInt);
+    return _deepEquals(totalRamMb, other.totalRamMb) && _deepEquals(availableRamMb, other.availableRamMb) && _deepEquals(lowRamDevice, other.lowRamDevice) && _deepEquals(socManufacturer, other.socManufacturer) && _deepEquals(socModel, other.socModel) && _deepEquals(abis, other.abis) && _deepEquals(sdkInt, other.sdkInt) && _deepEquals(freeStorageMb, other.freeStorageMb);
   }
 
   @override
@@ -633,53 +664,63 @@ class DeviceCapabilityMessage {
 
   @override
   String toString() {
-    return 'DeviceCapabilityMessage(totalRamMb: $totalRamMb, availableRamMb: $availableRamMb, lowRamDevice: $lowRamDevice, socManufacturer: $socManufacturer, socModel: $socModel, abis: $abis, sdkInt: $sdkInt)';
+    return 'DeviceCapabilityMessage(totalRamMb: $totalRamMb, availableRamMb: $availableRamMb, lowRamDevice: $lowRamDevice, socManufacturer: $socManufacturer, socModel: $socModel, abis: $abis, sdkInt: $sdkInt, freeStorageMb: $freeStorageMb)';
   }
 }
 
-class LocalModelInfoMessage {
-  LocalModelInfoMessage({
-    required this.status,
-    this.baseModelName,
-    this.detail,
+class ModelSpecMessage {
+  ModelSpecMessage({
+    required this.id,
+    required this.url,
+    required this.fileName,
+    required this.sha256,
+    required this.sizeBytes,
   });
 
-  LocalModelStatus status;
+  String id;
 
-  String? baseModelName;
+  String url;
 
-  String? detail;
+  String fileName;
+
+  String sha256;
+
+  int sizeBytes;
 
   List<Object?> _toList() {
     return <Object?>[
-      status,
-      baseModelName,
-      detail,
+      id,
+      url,
+      fileName,
+      sha256,
+      sizeBytes,
     ];
   }
 
   Object encode() {
     return _toList();  }
 
-  static LocalModelInfoMessage decode(Object result) {
+  static ModelSpecMessage decode(Object result) {
     result as List<Object?>;
-    return LocalModelInfoMessage(
-      status: result[0]! as LocalModelStatus,
-      baseModelName: result[1] as String?,
-      detail: result[2] as String?,
+    return ModelSpecMessage(
+      id: result[0]! as String,
+      url: result[1]! as String,
+      fileName: result[2]! as String,
+      sha256: result[3]! as String,
+      sizeBytes: result[4]! as int,
     );
   }
 
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
   bool operator ==(Object other) {
-    if (other is! LocalModelInfoMessage || other.runtimeType != runtimeType) {
+    if (other is! ModelSpecMessage || other.runtimeType != runtimeType) {
       return false;
     }
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(status, other.status) && _deepEquals(baseModelName, other.baseModelName) && _deepEquals(detail, other.detail);
+    return _deepEquals(id, other.id) && _deepEquals(url, other.url) && _deepEquals(fileName, other.fileName) && _deepEquals(sha256, other.sha256) && _deepEquals(sizeBytes, other.sizeBytes);
   }
 
   @override
@@ -688,7 +729,691 @@ class LocalModelInfoMessage {
 
   @override
   String toString() {
-    return 'LocalModelInfoMessage(status: $status, baseModelName: $baseModelName, detail: $detail)';
+    return 'ModelSpecMessage(id: $id, url: $url, fileName: $fileName, sha256: $sha256, sizeBytes: $sizeBytes)';
+  }
+}
+
+class InstalledModelMessage {
+  InstalledModelMessage({
+    required this.fileName,
+    required this.sizeBytes,
+  });
+
+  String fileName;
+
+  int sizeBytes;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      fileName,
+      sizeBytes,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static InstalledModelMessage decode(Object result) {
+    result as List<Object?>;
+    return InstalledModelMessage(
+      fileName: result[0]! as String,
+      sizeBytes: result[1]! as int,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! InstalledModelMessage || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(fileName, other.fileName) && _deepEquals(sizeBytes, other.sizeBytes);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'InstalledModelMessage(fileName: $fileName, sizeBytes: $sizeBytes)';
+  }
+}
+
+class DownloadProgressMessage {
+  DownloadProgressMessage({
+    required this.id,
+    required this.state,
+    required this.receivedBytes,
+    required this.totalBytes,
+    this.error,
+  });
+
+  String id;
+
+  DownloadState state;
+
+  int receivedBytes;
+
+  int totalBytes;
+
+  String? error;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      id,
+      state,
+      receivedBytes,
+      totalBytes,
+      error,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static DownloadProgressMessage decode(Object result) {
+    result as List<Object?>;
+    return DownloadProgressMessage(
+      id: result[0]! as String,
+      state: result[1]! as DownloadState,
+      receivedBytes: result[2]! as int,
+      totalBytes: result[3]! as int,
+      error: result[4] as String?,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! DownloadProgressMessage || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(id, other.id) && _deepEquals(state, other.state) && _deepEquals(receivedBytes, other.receivedBytes) && _deepEquals(totalBytes, other.totalBytes) && _deepEquals(error, other.error);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'DownloadProgressMessage(id: $id, state: $state, receivedBytes: $receivedBytes, totalBytes: $totalBytes, error: $error)';
+  }
+}
+
+class LlmStatusMessage {
+  LlmStatusMessage({
+    required this.state,
+    this.fileName,
+    this.backend,
+    this.error,
+    this.loadMillis,
+  });
+
+  LlmEngineState state;
+
+  String? fileName;
+
+  String? backend;
+
+  String? error;
+
+  int? loadMillis;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      state,
+      fileName,
+      backend,
+      error,
+      loadMillis,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static LlmStatusMessage decode(Object result) {
+    result as List<Object?>;
+    return LlmStatusMessage(
+      state: result[0]! as LlmEngineState,
+      fileName: result[1] as String?,
+      backend: result[2] as String?,
+      error: result[3] as String?,
+      loadMillis: result[4] as int?,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! LlmStatusMessage || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(state, other.state) && _deepEquals(fileName, other.fileName) && _deepEquals(backend, other.backend) && _deepEquals(error, other.error) && _deepEquals(loadMillis, other.loadMillis);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'LlmStatusMessage(state: $state, fileName: $fileName, backend: $backend, error: $error, loadMillis: $loadMillis)';
+  }
+}
+
+class ChatTurnMessage {
+  ChatTurnMessage({
+    required this.fromUser,
+    required this.text,
+  });
+
+  bool fromUser;
+
+  String text;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      fromUser,
+      text,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static ChatTurnMessage decode(Object result) {
+    result as List<Object?>;
+    return ChatTurnMessage(
+      fromUser: result[0]! as bool,
+      text: result[1]! as String,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! ChatTurnMessage || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(fromUser, other.fromUser) && _deepEquals(text, other.text);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'ChatTurnMessage(fromUser: $fromUser, text: $text)';
+  }
+}
+
+class LlmReplyMessage {
+  LlmReplyMessage({
+    required this.text,
+    required this.millis,
+  });
+
+  String text;
+
+  int millis;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      text,
+      millis,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static LlmReplyMessage decode(Object result) {
+    result as List<Object?>;
+    return LlmReplyMessage(
+      text: result[0]! as String,
+      millis: result[1]! as int,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! LlmReplyMessage || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(text, other.text) && _deepEquals(millis, other.millis);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'LlmReplyMessage(text: $text, millis: $millis)';
+  }
+}
+
+class AppMessage {
+  AppMessage({
+    required this.label,
+    required this.packageName,
+  });
+
+  String label;
+
+  String packageName;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      label,
+      packageName,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static AppMessage decode(Object result) {
+    result as List<Object?>;
+    return AppMessage(
+      label: result[0]! as String,
+      packageName: result[1]! as String,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! AppMessage || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(label, other.label) && _deepEquals(packageName, other.packageName);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'AppMessage(label: $label, packageName: $packageName)';
+  }
+}
+
+class ContactMessage {
+  ContactMessage({
+    required this.name,
+    required this.phone,
+  });
+
+  String name;
+
+  String phone;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      name,
+      phone,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static ContactMessage decode(Object result) {
+    result as List<Object?>;
+    return ContactMessage(
+      name: result[0]! as String,
+      phone: result[1]! as String,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! ContactMessage || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(name, other.name) && _deepEquals(phone, other.phone);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'ContactMessage(name: $name, phone: $phone)';
+  }
+}
+
+class CalendarEventMessage {
+  CalendarEventMessage({
+    required this.title,
+    required this.beginMillis,
+    required this.endMillis,
+    required this.allDay,
+    this.location,
+  });
+
+  String title;
+
+  int beginMillis;
+
+  int endMillis;
+
+  bool allDay;
+
+  String? location;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      title,
+      beginMillis,
+      endMillis,
+      allDay,
+      location,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static CalendarEventMessage decode(Object result) {
+    result as List<Object?>;
+    return CalendarEventMessage(
+      title: result[0]! as String,
+      beginMillis: result[1]! as int,
+      endMillis: result[2]! as int,
+      allDay: result[3]! as bool,
+      location: result[4] as String?,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! CalendarEventMessage || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(title, other.title) && _deepEquals(beginMillis, other.beginMillis) && _deepEquals(endMillis, other.endMillis) && _deepEquals(allDay, other.allDay) && _deepEquals(location, other.location);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'CalendarEventMessage(title: $title, beginMillis: $beginMillis, endMillis: $endMillis, allDay: $allDay, location: $location)';
+  }
+}
+
+class ReminderCapabilityMessage {
+  ReminderCapabilityMessage({
+    required this.exactAlarms,
+    required this.notifications,
+  });
+
+  /// Tam zamanlı alarm izni (Android 14+ ayarlardan verilir).
+  bool exactAlarms;
+
+  bool notifications;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      exactAlarms,
+      notifications,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static ReminderCapabilityMessage decode(Object result) {
+    result as List<Object?>;
+    return ReminderCapabilityMessage(
+      exactAlarms: result[0]! as bool,
+      notifications: result[1]! as bool,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! ReminderCapabilityMessage || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(exactAlarms, other.exactAlarms) && _deepEquals(notifications, other.notifications);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'ReminderCapabilityMessage(exactAlarms: $exactAlarms, notifications: $notifications)';
+  }
+}
+
+class DevConfigMessage {
+  DevConfigMessage({
+    this.gatewayUrl,
+    this.gatewayToken,
+  });
+
+  String? gatewayUrl;
+
+  String? gatewayToken;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      gatewayUrl,
+      gatewayToken,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static DevConfigMessage decode(Object result) {
+    result as List<Object?>;
+    return DevConfigMessage(
+      gatewayUrl: result[0] as String?,
+      gatewayToken: result[1] as String?,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! DevConfigMessage || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(gatewayUrl, other.gatewayUrl) && _deepEquals(gatewayToken, other.gatewayToken);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'DevConfigMessage(gatewayUrl: $gatewayUrl, gatewayToken: $gatewayToken)';
+  }
+}
+
+class DocumentResultMessage {
+  DocumentResultMessage({
+    required this.kind,
+    this.name,
+    required this.text,
+    required this.labels,
+  });
+
+  /// "image", "pdf", "text"
+  String kind;
+
+  String? name;
+
+  /// OCR veya dosya metni (en fazla ~20.000 karakter).
+  String text;
+
+  /// Fotoğraf için cihaz içi görüntü etiketleri (ör. "Kedi 0.92").
+  List<String> labels;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      kind,
+      name,
+      text,
+      labels,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static DocumentResultMessage decode(Object result) {
+    result as List<Object?>;
+    return DocumentResultMessage(
+      kind: result[0]! as String,
+      name: result[1] as String?,
+      text: result[2]! as String,
+      labels: (result[3]! as List<Object?>).cast<String>(),
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! DocumentResultMessage || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(kind, other.kind) && _deepEquals(name, other.name) && _deepEquals(text, other.text) && _deepEquals(labels, other.labels);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'DocumentResultMessage(kind: $kind, name: $name, text: $text, labels: $labels)';
+  }
+}
+
+class NotificationMessage {
+  NotificationMessage({
+    required this.key,
+    required this.appName,
+    required this.packageName,
+    required this.title,
+    required this.text,
+    required this.postedMillis,
+    required this.canReply,
+  });
+
+  String key;
+
+  String appName;
+
+  String packageName;
+
+  String title;
+
+  String text;
+
+  int postedMillis;
+
+  bool canReply;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      key,
+      appName,
+      packageName,
+      title,
+      text,
+      postedMillis,
+      canReply,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static NotificationMessage decode(Object result) {
+    result as List<Object?>;
+    return NotificationMessage(
+      key: result[0]! as String,
+      appName: result[1]! as String,
+      packageName: result[2]! as String,
+      title: result[3]! as String,
+      text: result[4]! as String,
+      postedMillis: result[5]! as int,
+      canReply: result[6]! as bool,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! NotificationMessage || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(key, other.key) && _deepEquals(appName, other.appName) && _deepEquals(packageName, other.packageName) && _deepEquals(title, other.title) && _deepEquals(text, other.text) && _deepEquals(postedMillis, other.postedMillis) && _deepEquals(canReply, other.canReply);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'NotificationMessage(key: $key, appName: $appName, packageName: $packageName, title: $title, text: $text, postedMillis: $postedMillis, canReply: $canReply)';
   }
 }
 
@@ -715,35 +1440,80 @@ class _PigeonCodec extends StandardMessageCodec {
     }    else if (value is TtsEventType) {
       buffer.putUint8(133);
       writeValue(buffer, value.index);
-    }    else if (value is LocalModelStatus) {
+    }    else if (value is DownloadState) {
       buffer.putUint8(134);
       writeValue(buffer, value.index);
-    }    else if (value is AssistantRoleStatusMessage) {
+    }    else if (value is LlmEngineState) {
       buffer.putUint8(135);
-      writeValue(buffer, value.encode());
-    }    else if (value is AssistLaunchMessage) {
+      writeValue(buffer, value.index);
+    }    else if (value is SettingsPage) {
       buffer.putUint8(136);
-      writeValue(buffer, value.encode());
-    }    else if (value is SpeechEventMessage) {
+      writeValue(buffer, value.index);
+    }    else if (value is RuntimePermission) {
       buffer.putUint8(137);
-      writeValue(buffer, value.encode());
-    }    else if (value is SpeechEngineInfoMessage) {
+      writeValue(buffer, value.index);
+    }    else if (value is AssistantRoleStatusMessage) {
       buffer.putUint8(138);
       writeValue(buffer, value.encode());
-    }    else if (value is TtsInitResultMessage) {
+    }    else if (value is AssistLaunchMessage) {
       buffer.putUint8(139);
       writeValue(buffer, value.encode());
-    }    else if (value is TtsEventMessage) {
+    }    else if (value is SpeechEventMessage) {
       buffer.putUint8(140);
       writeValue(buffer, value.encode());
-    }    else if (value is DatabaseKeyMessage) {
+    }    else if (value is SpeechEngineInfoMessage) {
       buffer.putUint8(141);
       writeValue(buffer, value.encode());
-    }    else if (value is DeviceCapabilityMessage) {
+    }    else if (value is TtsInitResultMessage) {
       buffer.putUint8(142);
       writeValue(buffer, value.encode());
-    }    else if (value is LocalModelInfoMessage) {
+    }    else if (value is TtsEventMessage) {
       buffer.putUint8(143);
+      writeValue(buffer, value.encode());
+    }    else if (value is DatabaseKeyMessage) {
+      buffer.putUint8(144);
+      writeValue(buffer, value.encode());
+    }    else if (value is DeviceCapabilityMessage) {
+      buffer.putUint8(145);
+      writeValue(buffer, value.encode());
+    }    else if (value is ModelSpecMessage) {
+      buffer.putUint8(146);
+      writeValue(buffer, value.encode());
+    }    else if (value is InstalledModelMessage) {
+      buffer.putUint8(147);
+      writeValue(buffer, value.encode());
+    }    else if (value is DownloadProgressMessage) {
+      buffer.putUint8(148);
+      writeValue(buffer, value.encode());
+    }    else if (value is LlmStatusMessage) {
+      buffer.putUint8(149);
+      writeValue(buffer, value.encode());
+    }    else if (value is ChatTurnMessage) {
+      buffer.putUint8(150);
+      writeValue(buffer, value.encode());
+    }    else if (value is LlmReplyMessage) {
+      buffer.putUint8(151);
+      writeValue(buffer, value.encode());
+    }    else if (value is AppMessage) {
+      buffer.putUint8(152);
+      writeValue(buffer, value.encode());
+    }    else if (value is ContactMessage) {
+      buffer.putUint8(153);
+      writeValue(buffer, value.encode());
+    }    else if (value is CalendarEventMessage) {
+      buffer.putUint8(154);
+      writeValue(buffer, value.encode());
+    }    else if (value is ReminderCapabilityMessage) {
+      buffer.putUint8(155);
+      writeValue(buffer, value.encode());
+    }    else if (value is DevConfigMessage) {
+      buffer.putUint8(156);
+      writeValue(buffer, value.encode());
+    }    else if (value is DocumentResultMessage) {
+      buffer.putUint8(157);
+      writeValue(buffer, value.encode());
+    }    else if (value is NotificationMessage) {
+      buffer.putUint8(158);
       writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
@@ -770,25 +1540,58 @@ class _PigeonCodec extends StandardMessageCodec {
         return value == null ? null : TtsEventType.values[value];
       case 134:
         final value = readValue(buffer) as int?;
-        return value == null ? null : LocalModelStatus.values[value];
+        return value == null ? null : DownloadState.values[value];
       case 135:
-        return AssistantRoleStatusMessage.decode(readValue(buffer)!);
+        final value = readValue(buffer) as int?;
+        return value == null ? null : LlmEngineState.values[value];
       case 136:
-        return AssistLaunchMessage.decode(readValue(buffer)!);
+        final value = readValue(buffer) as int?;
+        return value == null ? null : SettingsPage.values[value];
       case 137:
-        return SpeechEventMessage.decode(readValue(buffer)!);
+        final value = readValue(buffer) as int?;
+        return value == null ? null : RuntimePermission.values[value];
       case 138:
-        return SpeechEngineInfoMessage.decode(readValue(buffer)!);
+        return AssistantRoleStatusMessage.decode(readValue(buffer)!);
       case 139:
-        return TtsInitResultMessage.decode(readValue(buffer)!);
+        return AssistLaunchMessage.decode(readValue(buffer)!);
       case 140:
-        return TtsEventMessage.decode(readValue(buffer)!);
+        return SpeechEventMessage.decode(readValue(buffer)!);
       case 141:
-        return DatabaseKeyMessage.decode(readValue(buffer)!);
+        return SpeechEngineInfoMessage.decode(readValue(buffer)!);
       case 142:
-        return DeviceCapabilityMessage.decode(readValue(buffer)!);
+        return TtsInitResultMessage.decode(readValue(buffer)!);
       case 143:
-        return LocalModelInfoMessage.decode(readValue(buffer)!);
+        return TtsEventMessage.decode(readValue(buffer)!);
+      case 144:
+        return DatabaseKeyMessage.decode(readValue(buffer)!);
+      case 145:
+        return DeviceCapabilityMessage.decode(readValue(buffer)!);
+      case 146:
+        return ModelSpecMessage.decode(readValue(buffer)!);
+      case 147:
+        return InstalledModelMessage.decode(readValue(buffer)!);
+      case 148:
+        return DownloadProgressMessage.decode(readValue(buffer)!);
+      case 149:
+        return LlmStatusMessage.decode(readValue(buffer)!);
+      case 150:
+        return ChatTurnMessage.decode(readValue(buffer)!);
+      case 151:
+        return LlmReplyMessage.decode(readValue(buffer)!);
+      case 152:
+        return AppMessage.decode(readValue(buffer)!);
+      case 153:
+        return ContactMessage.decode(readValue(buffer)!);
+      case 154:
+        return CalendarEventMessage.decode(readValue(buffer)!);
+      case 155:
+        return ReminderCapabilityMessage.decode(readValue(buffer)!);
+      case 156:
+        return DevConfigMessage.decode(readValue(buffer)!);
+      case 157:
+        return DocumentResultMessage.decode(readValue(buffer)!);
+      case 158:
+        return NotificationMessage.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
     }
@@ -1330,11 +2133,11 @@ class NetworkHostApi {
   }
 }
 
-class LocalAiHostApi {
-  /// Constructor for [LocalAiHostApi]. The [binaryMessenger] named argument is
+class ModelHostApi {
+  /// Constructor for [ModelHostApi]. The [binaryMessenger] named argument is
   /// available for dependency injection. If it is left null, the default
   /// BinaryMessenger will be used which routes to the host platform.
-  LocalAiHostApi({
+  ModelHostApi({
       BinaryMessenger? binaryMessenger, 
       String messageChannelSuffix = '', 
       })
@@ -1348,7 +2151,7 @@ class LocalAiHostApi {
 
 
   Future<DeviceCapabilityMessage> getDeviceCapability() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.saklaz_android_bridge.LocalAiHostApi.getDeviceCapability$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName = 'dev.flutter.pigeon.saklaz_android_bridge.ModelHostApi.getDeviceCapability$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -1366,8 +2169,8 @@ class LocalAiHostApi {
     return pigeonVar_replyValue! as DeviceCapabilityMessage;
   }
 
-  Future<LocalModelInfoMessage> checkModel() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.saklaz_android_bridge.LocalAiHostApi.checkModel$pigeonVar_messageChannelSuffix';
+  Future<List<InstalledModelMessage>> listInstalled() async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.saklaz_android_bridge.ModelHostApi.listInstalled$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -1382,12 +2185,120 @@ class LocalAiHostApi {
         isNullValid: false,
     )
     ;
-    return pigeonVar_replyValue! as LocalModelInfoMessage;
+    return (pigeonVar_replyValue! as List<Object?>).cast<InstalledModelMessage>();
   }
 
-  /// Yalnızca kullanıcı açıkça isterse çağrılır (sistem modeli indirir).
-  Future<LocalModelInfoMessage> downloadModel() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.saklaz_android_bridge.LocalAiHostApi.downloadModel$pigeonVar_messageChannelSuffix';
+  /// İndirmeyi başlatır (kaldığı yerden devam eder). İlerleme ModelFlutterApi ile gelir.
+  /// Bitince SHA-256 doğrulanır; eşleşmezse dosya silinir.
+  Future<void> startDownload(ModelSpecMessage spec) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.saklaz_android_bridge.ModelHostApi.startDownload$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[spec]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+  }
+
+  Future<void> cancelDownload(String id) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.saklaz_android_bridge.ModelHostApi.cancelDownload$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[id]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+  }
+
+  Future<void> deleteModel(String fileName) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.saklaz_android_bridge.ModelHostApi.deleteModel$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[fileName]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+  }
+}
+
+abstract class ModelFlutterApi {
+  static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
+
+  void onDownloadProgress(DownloadProgressMessage progress);
+
+  static void setUp(ModelFlutterApi? api, {
+    BinaryMessenger? binaryMessenger, 
+    String messageChannelSuffix = '',
+  }) 
+{
+    messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
+    {
+      final pigeonVar_channel = BasicMessageChannel<Object?>(
+          'dev.flutter.pigeon.saklaz_android_bridge.ModelFlutterApi.onDownloadProgress$messageChannelSuffix', pigeonChannelCodec,
+          binaryMessenger: binaryMessenger);
+      if (api == null) {
+        pigeonVar_channel.setMessageHandler(null);
+      } else {
+        pigeonVar_channel.setMessageHandler((Object? message) async {
+          final List<Object?> args = message! as List<Object?>;
+          final DownloadProgressMessage arg_progress = args[0]! as DownloadProgressMessage;
+          try {
+            api.onDownloadProgress(arg_progress);
+            return wrapResponse(empty: true);
+          } on PlatformException catch (e) {
+            return wrapResponse(error: e);
+          }          catch (e) {
+            return wrapResponse(error: PlatformException(code: 'error', message: e.toString()));
+          }
+        });
+      }
+    }
+  }
+}
+
+class LocalLlmHostApi {
+  /// Constructor for [LocalLlmHostApi]. The [binaryMessenger] named argument is
+  /// available for dependency injection. If it is left null, the default
+  /// BinaryMessenger will be used which routes to the host platform.
+  LocalLlmHostApi({
+      BinaryMessenger? binaryMessenger, 
+      String messageChannelSuffix = '', 
+      })
+      : pigeonVar_binaryMessenger = binaryMessenger,
+        pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
+
+  final BinaryMessenger? pigeonVar_binaryMessenger;
+  static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
+
+  final String pigeonVar_messageChannelSuffix;
+
+
+  Future<LlmStatusMessage> status() async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.saklaz_android_bridge.LocalLlmHostApi.status$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -1402,17 +2313,18 @@ class LocalAiHostApi {
         isNullValid: false,
     )
     ;
-    return pigeonVar_replyValue! as LocalModelInfoMessage;
+    return pigeonVar_replyValue! as LlmStatusMessage;
   }
 
-  Future<String> generate(String prompt, int maxOutputTokens, double temperature) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.saklaz_android_bridge.LocalAiHostApi.generate$pigeonVar_messageChannelSuffix';
+  /// Modeli belleğe yükler. preferGpu ise önce GPU denenir, olmazsa CPU.
+  Future<LlmStatusMessage> load(String fileName, bool preferGpu, int maxTokens) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.saklaz_android_bridge.LocalLlmHostApi.load$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[prompt, maxOutputTokens, temperature]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[fileName, preferGpu, maxTokens]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
@@ -1421,6 +2333,702 @@ class LocalAiHostApi {
         isNullValid: false,
     )
     ;
-    return pigeonVar_replyValue! as String;
+    return pigeonVar_replyValue! as LlmStatusMessage;
+  }
+
+  Future<void> unload() async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.saklaz_android_bridge.LocalLlmHostApi.unload$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+  }
+
+  Future<LlmReplyMessage> generate(String systemPrompt, List<ChatTurnMessage> history, String userText, int maxOutputTokens) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.saklaz_android_bridge.LocalLlmHostApi.generate$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[systemPrompt, history, userText, maxOutputTokens]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as LlmReplyMessage;
+  }
+
+  Future<void> cancel() async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.saklaz_android_bridge.LocalLlmHostApi.cancel$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+  }
+}
+
+class SecretsHostApi {
+  /// Constructor for [SecretsHostApi]. The [binaryMessenger] named argument is
+  /// available for dependency injection. If it is left null, the default
+  /// BinaryMessenger will be used which routes to the host platform.
+  SecretsHostApi({
+      BinaryMessenger? binaryMessenger, 
+      String messageChannelSuffix = '', 
+      })
+      : pigeonVar_binaryMessenger = binaryMessenger,
+        pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
+
+  final BinaryMessenger? pigeonVar_binaryMessenger;
+  static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
+
+  final String pigeonVar_messageChannelSuffix;
+
+
+  Future<void> put(String name, String value) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.saklaz_android_bridge.SecretsHostApi.put$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[name, value]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+  }
+
+  Future<String?> get(String name) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.saklaz_android_bridge.SecretsHostApi.get$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[name]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+    return pigeonVar_replyValue as String?;
+  }
+
+  Future<void> delete(String name) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.saklaz_android_bridge.SecretsHostApi.delete$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[name]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+  }
+
+  Future<bool> has(String name) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.saklaz_android_bridge.SecretsHostApi.has$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[name]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as bool;
+  }
+}
+
+class AppsHostApi {
+  /// Constructor for [AppsHostApi]. The [binaryMessenger] named argument is
+  /// available for dependency injection. If it is left null, the default
+  /// BinaryMessenger will be used which routes to the host platform.
+  AppsHostApi({
+      BinaryMessenger? binaryMessenger, 
+      String messageChannelSuffix = '', 
+      })
+      : pigeonVar_binaryMessenger = binaryMessenger,
+        pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
+
+  final BinaryMessenger? pigeonVar_binaryMessenger;
+  static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
+
+  final String pigeonVar_messageChannelSuffix;
+
+
+  Future<List<AppMessage>> findApps(String query, int limit) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.saklaz_android_bridge.AppsHostApi.findApps$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[query, limit]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return (pigeonVar_replyValue! as List<Object?>).cast<AppMessage>();
+  }
+
+  Future<bool> launchApp(String packageName) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.saklaz_android_bridge.AppsHostApi.launchApp$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[packageName]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as bool;
+  }
+
+  Future<bool> openSettings(SettingsPage page) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.saklaz_android_bridge.AppsHostApi.openSettings$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[page]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as bool;
+  }
+}
+
+class RuntimePermissionHostApi {
+  /// Constructor for [RuntimePermissionHostApi]. The [binaryMessenger] named argument is
+  /// available for dependency injection. If it is left null, the default
+  /// BinaryMessenger will be used which routes to the host platform.
+  RuntimePermissionHostApi({
+      BinaryMessenger? binaryMessenger, 
+      String messageChannelSuffix = '', 
+      })
+      : pigeonVar_binaryMessenger = binaryMessenger,
+        pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
+
+  final BinaryMessenger? pigeonVar_binaryMessenger;
+  static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
+
+  final String pigeonVar_messageChannelSuffix;
+
+
+  Future<MicPermissionState> check(RuntimePermission permission) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.saklaz_android_bridge.RuntimePermissionHostApi.check$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[permission]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as MicPermissionState;
+  }
+
+  Future<MicPermissionState> request(RuntimePermission permission) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.saklaz_android_bridge.RuntimePermissionHostApi.request$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[permission]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as MicPermissionState;
+  }
+}
+
+class PhoneActionsHostApi {
+  /// Constructor for [PhoneActionsHostApi]. The [binaryMessenger] named argument is
+  /// available for dependency injection. If it is left null, the default
+  /// BinaryMessenger will be used which routes to the host platform.
+  PhoneActionsHostApi({
+      BinaryMessenger? binaryMessenger, 
+      String messageChannelSuffix = '', 
+      })
+      : pigeonVar_binaryMessenger = binaryMessenger,
+        pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
+
+  final BinaryMessenger? pigeonVar_binaryMessenger;
+  static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
+
+  final String pigeonVar_messageChannelSuffix;
+
+
+  /// READ_CONTACTS gerekir.
+  Future<List<ContactMessage>> searchContacts(String query, int limit) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.saklaz_android_bridge.PhoneActionsHostApi.searchContacts$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[query, limit]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return (pigeonVar_replyValue! as List<Object?>).cast<ContactMessage>();
+  }
+
+  /// Çevirici uygulamasını numarayla açar (arama kullanıcı tarafından başlatılır).
+  Future<bool> openDialer(String phone) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.saklaz_android_bridge.PhoneActionsHostApi.openDialer$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[phone]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as bool;
+  }
+
+  /// WhatsApp'ı hazır mesajla açar; gönder tuşuna kullanıcı basar.
+  Future<bool> openWhatsApp(String phone, String text) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.saklaz_android_bridge.PhoneActionsHostApi.openWhatsApp$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[phone, text]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as bool;
+  }
+
+  /// Saat uygulamasında alarm kurar (AlarmClock.ACTION_SET_ALARM).
+  Future<bool> setAlarm(int hour, int minute, String label) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.saklaz_android_bridge.PhoneActionsHostApi.setAlarm$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[hour, minute, label]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as bool;
+  }
+
+  /// Takvim uygulamasında doldurulmuş etkinlik ekranını açar; kaydı kullanıcı yapar.
+  Future<bool> insertCalendarEvent(String title, int beginMillis, int endMillis) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.saklaz_android_bridge.PhoneActionsHostApi.insertCalendarEvent$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[title, beginMillis, endMillis]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as bool;
+  }
+
+  /// READ_CALENDAR gerekir.
+  Future<List<CalendarEventMessage>> readCalendar(int fromMillis, int toMillis) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.saklaz_android_bridge.PhoneActionsHostApi.readCalendar$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[fromMillis, toMillis]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return (pigeonVar_replyValue! as List<Object?>).cast<CalendarEventMessage>();
+  }
+}
+
+class ReminderHostApi {
+  /// Constructor for [ReminderHostApi]. The [binaryMessenger] named argument is
+  /// available for dependency injection. If it is left null, the default
+  /// BinaryMessenger will be used which routes to the host platform.
+  ReminderHostApi({
+      BinaryMessenger? binaryMessenger, 
+      String messageChannelSuffix = '', 
+      })
+      : pigeonVar_binaryMessenger = binaryMessenger,
+        pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
+
+  final BinaryMessenger? pigeonVar_binaryMessenger;
+  static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
+
+  final String pigeonVar_messageChannelSuffix;
+
+
+  Future<ReminderCapabilityMessage> capability() async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.saklaz_android_bridge.ReminderHostApi.capability$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as ReminderCapabilityMessage;
+  }
+
+  Future<void> schedule(int id, String text, int atMillis) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.saklaz_android_bridge.ReminderHostApi.schedule$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[id, text, atMillis]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+  }
+
+  Future<void> cancel(int id) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.saklaz_android_bridge.ReminderHostApi.cancel$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[id]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+  }
+
+  Future<void> openExactAlarmSettings() async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.saklaz_android_bridge.ReminderHostApi.openExactAlarmSettings$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+  }
+}
+
+class DevConfigHostApi {
+  /// Constructor for [DevConfigHostApi]. The [binaryMessenger] named argument is
+  /// available for dependency injection. If it is left null, the default
+  /// BinaryMessenger will be used which routes to the host platform.
+  DevConfigHostApi({
+      BinaryMessenger? binaryMessenger, 
+      String messageChannelSuffix = '', 
+      })
+      : pigeonVar_binaryMessenger = binaryMessenger,
+        pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
+
+  final BinaryMessenger? pigeonVar_binaryMessenger;
+  static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
+
+  final String pigeonVar_messageChannelSuffix;
+
+
+  Future<DevConfigMessage?> consumeDevConfig() async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.saklaz_android_bridge.DevConfigHostApi.consumeDevConfig$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+    return pigeonVar_replyValue as DevConfigMessage?;
+  }
+}
+
+class FileHostApi {
+  /// Constructor for [FileHostApi]. The [binaryMessenger] named argument is
+  /// available for dependency injection. If it is left null, the default
+  /// BinaryMessenger will be used which routes to the host platform.
+  FileHostApi({
+      BinaryMessenger? binaryMessenger, 
+      String messageChannelSuffix = '', 
+      })
+      : pigeonVar_binaryMessenger = binaryMessenger,
+        pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
+
+  final BinaryMessenger? pigeonVar_binaryMessenger;
+  static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
+
+  final String pigeonVar_messageChannelSuffix;
+
+
+  /// Kullanıcı dosya seçer (metin, PDF, görsel). Vazgeçerse null.
+  Future<DocumentResultMessage?> pickAndRead() async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.saklaz_android_bridge.FileHostApi.pickAndRead$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+    return pigeonVar_replyValue as DocumentResultMessage?;
+  }
+
+  /// Kamera veya galeri: görüntü -> OCR + etiketler.
+  Future<DocumentResultMessage?> captureImage(bool fromCamera) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.saklaz_android_bridge.FileHostApi.captureImage$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[fromCamera]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+    return pigeonVar_replyValue as DocumentResultMessage?;
+  }
+}
+
+class NotificationsHostApi {
+  /// Constructor for [NotificationsHostApi]. The [binaryMessenger] named argument is
+  /// available for dependency injection. If it is left null, the default
+  /// BinaryMessenger will be used which routes to the host platform.
+  NotificationsHostApi({
+      BinaryMessenger? binaryMessenger, 
+      String messageChannelSuffix = '', 
+      })
+      : pigeonVar_binaryMessenger = binaryMessenger,
+        pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
+
+  final BinaryMessenger? pigeonVar_binaryMessenger;
+  static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
+
+  final String pigeonVar_messageChannelSuffix;
+
+
+  Future<bool> isAccessGranted() async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.saklaz_android_bridge.NotificationsHostApi.isAccessGranted$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as bool;
+  }
+
+  Future<void> openAccessSettings() async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.saklaz_android_bridge.NotificationsHostApi.openAccessSettings$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+  }
+
+  Future<List<NotificationMessage>> recent(int limit) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.saklaz_android_bridge.NotificationsHostApi.recent$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[limit]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return (pigeonVar_replyValue! as List<Object?>).cast<NotificationMessage>();
+  }
+
+  /// Bildirimdeki "Yanıtla" eylemiyle yanıt gönderir. YALNIZCA kullanıcı onayından sonra.
+  Future<bool> reply(String key, String text) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.saklaz_android_bridge.NotificationsHostApi.reply$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[key, text]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as bool;
   }
 }

@@ -10,6 +10,16 @@
     <!-- Normal izin: çevrimdışıyken bulutu denemeden yerel moda geçmek için. -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
+    <!-- Phase 3 telefon entegrasyonu. Tehlikeli izinler yalnızca özellik ilk kullanıldığında istenir. -->
+    <uses-permission android:name="android.permission.READ_CONTACTS" />
+    <uses-permission android:name="android.permission.READ_CALENDAR" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Hatırlatıcılar: tam zamanlı alarm (Android 14+ kullanıcı ayarlardan verir) ve yeniden başlatma. -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- Saat uygulamasında alarm kurma (normal izin). -->
+    <uses-permission android:name="com.android.alarm.permission.SET_ALARM" />
+
     <application
         android:name="${applicationName}"
         android:label="SAKLAZ"
@@ -85,6 +95,41 @@
                 android:resource="@xml/recognition_service" />
         </service>
 
+        <!-- Hatırlatıcı alarmları ve yeniden başlatma sonrası yeniden kurulum -->
+        <receiver android:name=".reminders.ReminderReceiver" android:exported="false" />
+        <receiver android:name=".reminders.BootReceiver" android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Bildirim okuma: YALNIZCA kullanıcı Ayarlar > Bildirim erişimi'nden izin verirse bağlanır. -->
+        <service
+            android:name=".platform.SaklazNotificationListener"
+            android:exported="true"
+            android:label="SAKLAZ"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
+
+        <!-- Kamera uygulamasına geçici çıktı dosyası (CAMERA izni gerekmez). -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.files"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+
+        <!-- LiteRT-LM GPU arka ucu için OpenCL (yoksa CPU'ya düşer). -->
+        <uses-native-library android:name="libOpenCL.so" android:required="false" />
+        <uses-native-library android:name="libvndksupport.so" android:required="false" />
+
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
@@ -92,6 +137,26 @@
 
     <!-- Android 11+ paket görünürlüğü: yalnızca ses tanıma ve TTS motorları. -->
     <queries>
+        <package android:name="com.whatsapp" />
+        <package android:name="com.whatsapp.w4b" />
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+        <intent>
+            <action android:name="android.media.action.IMAGE_CAPTURE" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.DIAL" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.INSERT" />
+            <data android:mimeType="vnd.android.cursor.dir/event" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" android:host="wa.me" />
+        </intent>
         <intent>
             <action android:name="android.speech.RecognitionService" />
         </intent>

@@ -3,9 +3,14 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../infrastructure/providers.dart';
+import 'screens/ai_settings_screen.dart';
+import 'screens/chat_history_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/memory_screen.dart';
+import 'screens/model_screen.dart';
+import 'screens/notes_screen.dart';
 import 'screens/permissions_screen.dart';
+import 'screens/providers_screen.dart';
 import 'screens/settings_screen.dart';
 import 'theme/saklaz_theme.dart';
 import 'widgets/saklaz_logo.dart';
@@ -16,7 +21,7 @@ class SaklazApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'SAKLAZ',
+      title: 'SAKLAZ AI',
       debugShowCheckedModeBanner: false,
       theme: buildSaklazTheme(),
       darkTheme: buildSaklazTheme(),
@@ -29,6 +34,11 @@ class SaklazApp extends StatelessWidget {
         SettingsScreen.route: (_) => const SettingsScreen(),
         PermissionsScreen.route: (_) => const PermissionsScreen(),
         MemoryScreen.route: (_) => const MemoryScreen(),
+        ModelScreen.route: (_) => const ModelScreen(),
+        ProvidersScreen.route: (_) => const ProvidersScreen(),
+        AiSettingsScreen.route: (_) => const AiSettingsScreen(),
+        ChatHistoryScreen.route: (_) => const ChatHistoryScreen(),
+        NotesScreen.route: (_) => const NotesScreen(),
       },
     );
   }

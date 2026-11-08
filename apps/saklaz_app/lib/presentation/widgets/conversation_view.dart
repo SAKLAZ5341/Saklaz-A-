@@ -17,8 +17,6 @@ class ConversationView extends StatefulWidget {
   });
 
   final List<ChatMessage> messages;
-
-  /// Dinlerken anlık (henüz kesinleşmemiş) metin.
   final String partialText;
   final PendingAction? pending;
   final bool busy;
@@ -66,7 +64,8 @@ class _ConversationViewState extends State<ConversationView> {
         child: Padding(
           padding: EdgeInsets.all(24),
           child: Text(
-            'Henüz konuşma yok.\n"Konuşmayı Başlat"a bas veya yaz.',
+            'Merhaba! Benimle yazarak veya "Konuşmayı Başlat" ile sesli konuşabilirsin.\n'
+            'Kendinden bahset; seni zamanla tanıyacağım.',
             textAlign: TextAlign.center,
             style: TextStyle(color: SaklazColors.textSecondary, height: 1.5),
           ),
@@ -80,10 +79,29 @@ class _ConversationViewState extends State<ConversationView> {
       itemBuilder: (context, i) {
         if (i >= items.length) return extras[i - items.length];
         final m = items[i];
+        if (m.role == ChatRole.system) return _LearnedChip(text: m.text);
         return _Bubble(message: m, onReplay: m.isUser ? null : () => widget.onReplay(m));
       },
     );
   }
+}
+
+class _LearnedChip extends StatelessWidget {
+  const _LearnedChip({required this.text});
+  final String text;
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: SaklazColors.cyan.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: SaklazColors.cyan.withValues(alpha: 0.3)),
+          ),
+          child: Text(text, style: const TextStyle(color: SaklazColors.cyan, fontSize: 12.5)),
+        ),
+      );
 }
 
 class _Bubble extends StatelessWidget {
@@ -135,20 +153,17 @@ class _Bubble extends StatelessWidget {
               ),
             ),
             if (!isUser && message != null)
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  SourceBadge(source: message!.source),
-                  const SizedBox(width: 4),
-                  IconButton(
-                    visualDensity: VisualDensity.compact,
-                    tooltip: 'Tekrar dinle',
-                    iconSize: 18,
-                    onPressed: onReplay,
-                    icon: const Icon(Icons.replay_rounded),
-                  ),
-                ],
-              ),
+              Row(mainAxisSize: MainAxisSize.min, children: [
+                SourceBadge(source: message!.source),
+                const SizedBox(width: 4),
+                IconButton(
+                  visualDensity: VisualDensity.compact,
+                  tooltip: 'Tekrar dinle',
+                  iconSize: 18,
+                  onPressed: onReplay,
+                  icon: const Icon(Icons.replay_rounded),
+                ),
+              ]),
           ],
         ),
       ),
@@ -167,18 +182,15 @@ class SourceBadge extends StatelessWidget {
       MessageSource.localRules => ('Yerel', SaklazColors.listening, Icons.phone_android),
       MessageSource.memory => ('Hafıza', SaklazColors.cyan, Icons.memory),
       MessageSource.localLlm => ('Yerel AI', SaklazColors.listening, Icons.psychology),
-      MessageSource.cloud => ('OpenAI', SaklazColors.magenta, Icons.cloud_outlined),
+      MessageSource.cloud => ('Bulut', SaklazColors.magenta, Icons.cloud_outlined),
       MessageSource.system => ('Sistem', SaklazColors.textSecondary, Icons.info_outline),
       MessageSource.user => ('Sen', SaklazColors.textSecondary, Icons.person),
     };
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 13, color: color),
-        const SizedBox(width: 4),
-        Text(label, style: TextStyle(fontSize: 12, color: color, fontWeight: FontWeight.w600)),
-      ],
-    );
+    return Row(mainAxisSize: MainAxisSize.min, children: [
+      Icon(icon, size: 13, color: color),
+      const SizedBox(width: 4),
+      Text(label, style: TextStyle(fontSize: 12, color: color, fontWeight: FontWeight.w600)),
+    ]);
   }
 }
 
@@ -205,22 +217,41 @@ class _PendingCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final (icon, title, detail) = switch (action) {
-      ConfirmRemember(:final content) => (Icons.bookmark_add_outlined, 'Hafızaya kaydedilsin mi?', '"$content"\nYalnızca bu cihazda, şifreli saklanır.'),
+    final (icon, title, detail, accept, reject) = switch (action) {
+      ConfirmRemember(:final content) => (
+          Icons.bookmark_add_outlined,
+          'Hafızaya kaydedilsin mi?',
+          '"$content"\nYalnızca bu cihazda, şifreli saklanır.',
+          'Kaydet',
+          'Vazgeç',
+        ),
       ConfirmCloud(:final webSearch) => (
           Icons.cloud_upload_outlined,
-          'OpenAI\'a gönderilsin mi?',
-          'Gönderilecek: bu mesajın ve son birkaç konuşma mesajı. '
-              'Kayıtlı kişisel bilgiler ayarlarda izin vermedikçe gönderilmez.'
-              '${webSearch ? '\nGüncel bilgi için web araması kullanılabilir (ek maliyet).' : ''}',
+          'Bulut sağlayıcısına gönderilsin mi?',
+          'Gönderilecek: bu mesaj ve son birkaç konuşma mesajı. Kişisel hafızan ayarlarda izin vermedikçe gönderilmez. '
+              'Ücret sağlayıcıya göre sana aittir.${webSearch ? '\nWeb araması kullanılabilir (ek maliyet).' : ''}',
+          'Gönder',
+          'Gönderme',
+        ),
+      ConfirmAgentAction(action: final a) => (
+          switch (a) {
+            WhatsAppAction() => Icons.chat_outlined,
+            CallAction() => Icons.call_outlined,
+            CreateReminderAction() => Icons.alarm_add_outlined,
+            SetAlarmAction() => Icons.alarm,
+            AddCalendarEventAction() => Icons.event_outlined,
+            SaveNoteAction() => Icons.note_add_outlined,
+            ReplyNotificationAction() => Icons.reply,
+          },
+          a.risk == RiskLevel.high ? 'Onay gerekli (yalnızca ekrandan)' : 'Onaylıyor musun?',
+          a.risk == RiskLevel.high ? a.preview : '${a.preview}\nSesli "evet" veya "hayır" da diyebilirsin.',
+          'Onayla',
+          'İptal',
         ),
     };
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 8),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-        side: const BorderSide(color: SaklazColors.warning),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: const BorderSide(color: SaklazColors.warning)),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -235,16 +266,10 @@ class _PendingCard extends StatelessWidget {
             Text(detail, style: const TextStyle(color: SaklazColors.textSecondary, height: 1.4)),
             const SizedBox(height: 12),
             Wrap(spacing: 8, runSpacing: 8, children: [
-              FilledButton(
-                onPressed: () => onResolve(accept: true),
-                child: Text(action is ConfirmRemember ? 'Kaydet' : 'Gönder'),
-              ),
+              FilledButton(onPressed: () => onResolve(accept: true), child: Text(accept)),
               if (action case ConfirmCloud(localAlternative: true))
                 OutlinedButton(onPressed: () => onResolve(accept: false, preferLocal: true), child: const Text('Yerelde yanıtla')),
-              TextButton(
-                onPressed: () => onResolve(accept: false),
-                child: Text(action is ConfirmRemember ? 'Vazgeç' : 'Gönderme'),
-              ),
+              TextButton(onPressed: () => onResolve(accept: false), child: Text(reject)),
             ]),
           ],
         ),

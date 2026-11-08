@@ -2,164 +2,221 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
+import 'package:saklaz_ai_core/saklaz_ai_core.dart';
 import 'package:saklaz_memory/saklaz_memory.dart';
 
-import '../../application/conversation_controller.dart';
+import '../../application/settings_controller.dart';
 import '../../infrastructure/providers.dart';
 import '../theme/saklaz_theme.dart';
+import '../widgets/common.dart';
+import 'chat_history_screen.dart';
 
-final factsProvider = FutureProvider.autoDispose<List<MemoryFact>>(
-  (ref) => ref.watch(memoryProvider).facts.all(),
-);
+final _memoryQueryProvider = StateProvider.autoDispose<String>((ref) => '');
+final _showArchivedProvider = StateProvider.autoDispose<bool>((ref) => false);
+final _memoryVersionProvider = StateProvider<int>((ref) => 0);
 
-/// Kişisel hafıza: görüntüleme, onaylı ekleme, silme. Hepsi cihazda.
+final memoryFactsProvider = FutureProvider.autoDispose<List<MemoryFact>>((ref) async {
+  ref.watch(_memoryVersionProvider);
+  final facts = ref.watch(memoryProvider).facts;
+  final q = ref.watch(_memoryQueryProvider).trim();
+  final archived = ref.watch(_showArchivedProvider);
+  if (q.isEmpty) return facts.all(includeArchived: archived);
+  return facts.search(q, limit: 50);
+});
+
+/// "Benim Hafızam": SAKLAZ'ın öğrendikleri. Görüntüle, ara, düzenle, sil. Hepsi cihazda.
 class MemoryScreen extends ConsumerWidget {
   const MemoryScreen({super.key});
   static const route = '/memory';
 
-  Future<bool> _confirm(BuildContext context, String title, String body, String action) async =>
-      await showDialog<bool>(
-        context: context,
-        builder: (c) => AlertDialog(
-          title: Text(title),
-          content: Text(body),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Vazgeç')),
-            FilledButton(onPressed: () => Navigator.pop(c, true), child: Text(action)),
-          ],
-        ),
-      ) ??
-      false;
+  void _bump(WidgetRef ref) => ref.read(_memoryVersionProvider.notifier).state++;
 
   Future<void> _add(BuildContext context, WidgetRef ref) async {
-    final ctrl = TextEditingController();
-    final text = await showDialog<String>(
-      context: context,
-      builder: (c) => AlertDialog(
-        title: const Text('Hafızaya bilgi ekle'),
-        content: TextField(
-          controller: ctrl,
-          autofocus: true,
-          maxLength: 500,
-          minLines: 1,
-          maxLines: 4,
-          decoration: const InputDecoration(hintText: 'Örn: En sevdiğim renk lacivert'),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(c), child: const Text('Vazgeç')),
-          FilledButton(onPressed: () => Navigator.pop(c, ctrl.text.trim()), child: const Text('Kaydet')),
-        ],
-      ),
-    );
-    ctrl.dispose();
-    if (text == null || text.isEmpty) return;
-    await ref.read(memoryProvider).facts.add(text);
-    ref.invalidate(factsProvider);
+    final result = await showDialog<(FactCategory, String)>(context: context, builder: (_) => const _AddFactDialog());
+    if (result == null || result.$2.isEmpty) return;
+    final (category, text) = result;
+    if (SensitiveFilter.isSensitive(text) && context.mounted) {
+      final ok = await confirmDialog(context, 'Hassas bilgi olabilir',
+          'Bu bir şifre, kart veya kimlik bilgisi gibi görünüyor. Yine de kaydedilsin mi? (Cihazda şifreli saklanır.)',
+          action: 'Yine de kaydet');
+      if (!ok) return;
+    }
+    await ref.read(memoryProvider).facts.upsert(category, text);
+    _bump(ref);
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final memory = ref.watch(memoryProvider);
-    final facts = ref.watch(factsProvider);
-    final messageCount = ref.watch(conversationProvider.select((c) => c.messages.length));
+    final facts = ref.watch(memoryFactsProvider);
+    final autoLearn = ref.watch(settingsProvider.select((s) => s.autoLearn));
+    final archived = ref.watch(_showArchivedProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Hafıza')),
+      appBar: AppBar(
+        title: const Text('Benim Hafızam'),
+        actions: [
+          IconButton(
+            tooltip: 'Sohbet geçmişinde ara',
+            icon: const Icon(Icons.manage_search),
+            onPressed: () => Navigator.pushNamed(context, ChatHistoryScreen.route),
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => unawaited(_add(context, ref)),
         icon: const Icon(Icons.add),
         label: const Text('Bilgi ekle'),
       ),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 720),
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
-            children: [
-              Card(
-                child: ListTile(
-                  leading: Icon(memory.encrypted ? Icons.lock : Icons.lock_open,
-                      color: memory.encrypted ? SaklazColors.listening : SaklazColors.warning),
-                  title: Text(memory.encrypted ? 'Şifreli ve yalnızca bu cihazda' : 'Şifreleme etkin DEĞİL'),
-                  subtitle: Text(memory.encrypted
-                      ? '${memory.cipherVersion ?? ''} · ChaCha20-Poly1305 · '
-                          'Anahtar: ${memory.hardwareBackedKey ? 'donanım destekli Android Keystore' : 'Android Keystore (yazılım)'}'
-                      : 'Kayıtlar yalnızca bellekte; uygulama kapanınca silinir. Neden: ${memory.error ?? '-'}'),
-                ),
+      body: ResponsiveBody(
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
+          children: [
+            Card(
+              child: ListTile(
+                leading: Icon(memory.encrypted ? Icons.lock : Icons.lock_open, color: memory.encrypted ? SaklazColors.listening : SaklazColors.warning),
+                title: Text(memory.encrypted ? 'Şifreli ve yalnızca bu telefonda' : 'Şifreleme etkin DEĞİL'),
+                subtitle: Text(memory.encrypted
+                    ? '${memory.cipherVersion ?? ''} · ChaCha20-Poly1305 · Anahtar: ${memory.hardwareBackedKey ? 'donanım destekli Android Keystore' : 'Android Keystore'}\nHafıza internete gönderilmez.'
+                    : 'Kayıtlar yalnızca bellekte. Neden: ${memory.error ?? '-'}'),
               ),
-              const SizedBox(height: 16),
-              const Text('KAYITLI BİLGİLER', style: TextStyle(color: SaklazColors.cyan, fontSize: 12, letterSpacing: 1.4, fontWeight: FontWeight.w700)),
-              const SizedBox(height: 4),
-              const Text(
-                'Yalnızca senin onayınla eklenir. Sohbette "Hatırla ki ..." diyebilirsin.',
-                style: TextStyle(color: SaklazColors.textSecondary),
+            ),
+            SwitchListTile(
+              title: const Text('Otomatik öğrenme'),
+              subtitle: const Text('Konuşmalarından mesleğin, projelerin, ilgi alanların gibi kalıcı bilgileri öğrenir. Şifre, kart, IBAN gibi sırlar asla otomatik kaydedilmez.'),
+              value: autoLearn,
+              onChanged: (v) => ref.read(settingsProvider.notifier).update((s) => s.copyWith(autoLearn: v)),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              decoration: const InputDecoration(prefixIcon: Icon(Icons.search), hintText: 'Hafızada ara (ör. proje, meslek)'),
+              onChanged: (v) => ref.read(_memoryQueryProvider.notifier).state = v,
+            ),
+            Wrap(children: [
+              FilterChip(
+                label: const Text('Eski (değişmiş) bilgileri göster'),
+                selected: archived,
+                onSelected: (v) => ref.read(_showArchivedProvider.notifier).state = v,
               ),
-              const SizedBox(height: 8),
-              facts.when(
-                data: (list) => list.isEmpty
-                    ? const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 24),
-                        child: Center(child: Text('Henüz kayıtlı bilgi yok.', style: TextStyle(color: SaklazColors.textSecondary))),
-                      )
-                    : Column(children: [
-                        for (final f in list)
-                          Card(
-                            child: ListTile(
-                              title: Text(f.text),
-                              subtitle: Text(_date(f.createdAt), style: const TextStyle(color: SaklazColors.textSecondary)),
-                              trailing: IconButton(
-                                tooltip: 'Sil',
-                                icon: const Icon(Icons.delete_outline, color: SaklazColors.danger),
-                                onPressed: () async {
-                                  if (!await _confirm(context, 'Bilgi silinsin mi?', f.text, 'Sil')) return;
-                                  await ref.read(memoryProvider).facts.delete(f.id);
-                                  ref.invalidate(factsProvider);
-                                },
-                              ),
-                            ),
-                          ),
-                        if (list.length > 1)
-                          TextButton.icon(
-                            onPressed: () async {
-                              if (!await _confirm(context, 'Tüm bilgiler silinsin mi?', '${list.length} kayıt kalıcı olarak silinecek.', 'Hepsini sil')) {
-                                return;
-                              }
-                              await ref.read(memoryProvider).facts.clear();
-                              ref.invalidate(factsProvider);
-                            },
-                            icon: const Icon(Icons.delete_sweep_outlined, color: SaklazColors.danger),
-                            label: const Text('Tüm bilgileri sil', style: TextStyle(color: SaklazColors.danger)),
-                          ),
-                      ]),
-                loading: () => const Padding(padding: EdgeInsets.all(24), child: Center(child: CircularProgressIndicator())),
-                error: (e, _) => Text('Okunamadı: $e', style: const TextStyle(color: SaklazColors.danger)),
-              ),
-              const SizedBox(height: 24),
-              const Text('KONUŞMA GEÇMİŞİ', style: TextStyle(color: SaklazColors.cyan, fontSize: 12, letterSpacing: 1.4, fontWeight: FontWeight.w700)),
-              Card(
-                child: ListTile(
-                  leading: const Icon(Icons.forum_outlined),
-                  title: Text('$messageCount mesaj'),
-                  subtitle: const Text('En fazla ${EncryptedMemoryDatabase.maxMessages} mesaj saklanır; eskiler otomatik silinir.'),
-                  trailing: TextButton(
-                    onPressed: messageCount == 0
-                        ? null
-                        : () async {
-                            if (!await _confirm(context, 'Konuşma geçmişi silinsin mi?', 'Bu işlem geri alınamaz.', 'Sil')) return;
-                            await ref.read(conversationProvider.notifier).clearHistory();
-                          },
-                    child: const Text('Temizle', style: TextStyle(color: SaklazColors.danger)),
-                  ),
-                ),
-              ),
-            ],
-          ),
+            ]),
+            const SizedBox(height: 8),
+            facts.when(
+              data: (list) => list.isEmpty
+                  ? const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 32),
+                      child: Center(
+                        child: Text('Henüz kayıtlı bilgi yok.\nBenimle kendinden bahsederek konuş; seni tanıyacağım.',
+                            textAlign: TextAlign.center, style: TextStyle(color: SaklazColors.textSecondary)),
+                      ),
+                    )
+                  : Column(children: [for (final f in list) _FactTile(fact: f, onChanged: () => _bump(ref))]),
+              loading: () => const Padding(padding: EdgeInsets.all(24), child: Center(child: CircularProgressIndicator())),
+              error: (e, _) => Text('Okunamadı: $e', style: const TextStyle(color: SaklazColors.danger)),
+            ),
+            const SizedBox(height: 16),
+            OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(foregroundColor: SaklazColors.danger),
+              onPressed: () async {
+                if (!await confirmDialog(context, 'Tüm hafıza silinsin mi?',
+                    'SAKLAZ\'ın senin hakkında öğrendiği tüm bilgiler kalıcı olarak silinecek. Bu işlem geri alınamaz.',
+                    action: 'Hepsini sil', destructive: true)) {
+                  return;
+                }
+                await ref.read(memoryProvider).facts.clear();
+                _bump(ref);
+              },
+              icon: const Icon(Icons.delete_sweep_outlined),
+              label: const Text('Bütün hafızayı temizle'),
+            ),
+          ],
         ),
       ),
     );
   }
+}
 
-  static String _date(DateTime d) =>
-      '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}.${d.year} '
-      '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
+class _FactTile extends ConsumerWidget {
+  const _FactTile({required this.fact, required this.onChanged});
+  final MemoryFact fact;
+  final VoidCallback onChanged;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final repo = ref.read(memoryProvider).facts;
+    final d = fact.updatedAt;
+    final date = '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}.${d.year}';
+    return Card(
+      child: ListTile(
+        leading: CircleAvatar(
+          backgroundColor: (fact.isActive ? SaklazColors.cyan : SaklazColors.textSecondary).withValues(alpha: 0.15),
+          child: Icon(fact.source == FactSource.auto ? Icons.auto_awesome : Icons.edit_note,
+              size: 18, color: fact.isActive ? SaklazColors.cyan : SaklazColors.textSecondary),
+        ),
+        title: Text(fact.text, style: TextStyle(decoration: fact.isActive ? null : TextDecoration.lineThrough)),
+        subtitle: Text(
+          '${fact.category.label} · ${fact.source == FactSource.auto ? 'otomatik öğrenildi' : 'elle eklendi'} · $date${fact.isActive ? '' : ' · ESKİ'}',
+          style: const TextStyle(color: SaklazColors.textSecondary, fontSize: 12),
+        ),
+        trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+          IconButton(
+            tooltip: 'Düzenle',
+            icon: const Icon(Icons.edit_outlined),
+            onPressed: () async {
+              final t = await textDialog(context, 'Bilgiyi düzenle', initial: fact.text);
+              if (t == null || t.isEmpty) return;
+              await repo.update(fact.id, t);
+              onChanged();
+            },
+          ),
+          IconButton(
+            tooltip: 'Sil',
+            icon: const Icon(Icons.delete_outline, color: SaklazColors.danger),
+            onPressed: () async {
+              if (!await confirmDialog(context, 'Bilgi silinsin mi?', fact.text, action: 'Sil', destructive: true)) return;
+              await repo.delete(fact.id);
+              onChanged();
+            },
+          ),
+        ]),
+      ),
+    );
+  }
+}
+
+/// Denetleyici diyaloğun yaşam döngüsünde imha edilir (kapanış animasyonu güvenli).
+class _AddFactDialog extends StatefulWidget {
+  const _AddFactDialog();
+  @override
+  State<_AddFactDialog> createState() => _AddFactDialogState();
+}
+
+class _AddFactDialogState extends State<_AddFactDialog> {
+  final _ctrl = TextEditingController();
+  var _category = FactCategory.other;
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+        title: const Text('Hafızaya bilgi ekle'),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          DropdownButtonFormField<FactCategory>(
+            initialValue: _category,
+            decoration: const InputDecoration(labelText: 'Kategori'),
+            items: [for (final f in FactCategory.values) DropdownMenuItem(value: f, child: Text(f.label))],
+            onChanged: (v) => setState(() => _category = v ?? FactCategory.other),
+          ),
+          const SizedBox(height: 12),
+          TextField(controller: _ctrl, autofocus: true, maxLength: 300, decoration: const InputDecoration(hintText: 'Örn: ASEDEN ERP')),
+        ]),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Vazgeç')),
+          FilledButton(onPressed: () => Navigator.pop(context, (_category, _ctrl.text.trim())), child: const Text('Kaydet')),
+        ],
+      );
 }

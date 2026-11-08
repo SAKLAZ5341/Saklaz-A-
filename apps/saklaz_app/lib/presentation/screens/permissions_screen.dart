@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:saklaz_ai_core/saklaz_ai_core.dart';
 import 'package:saklaz_android_bridge/saklaz_android_bridge.dart';
 import 'package:saklaz_voice/saklaz_voice.dart';
 
@@ -104,6 +105,8 @@ class _PermissionsScreenState extends ConsumerState<PermissionsScreen> with Widg
             loading: () => const _LoadingCard(),
             error: (e, _) => _ErrorCard(message: 'Mikrofon durumu okunamadı: $e'),
           ),
+          const SizedBox(height: 12),
+          const _PhonePermissionsCard(),
           const SizedBox(height: 12),
           const _SideKeyHelpCard(),
         ],
@@ -240,4 +243,61 @@ class _ErrorCard extends StatelessWidget {
           child: Text(message, style: const TextStyle(color: SaklazColors.danger)),
         ),
       );
+}
+
+final _phonePermsProvider = FutureProvider.autoDispose<Map<String, bool>>((ref) async {
+  final d = ref.watch(devicePortsProvider);
+  if (d is! AndroidDevicePorts) return const {};
+  final cap = await d.reminderCapability();
+  return {
+    'contacts': await d.hasPermission(DevicePermission.contacts),
+    'calendar': await d.hasPermission(DevicePermission.calendar),
+    'notifications': cap.notifications,
+    'exact': cap.exact,
+    'listener': await d.notificationAccess(),
+  };
+});
+
+/// Telefon entegrasyonu izinleri. Hepsi isteğe bağlıdır; yalnızca ilgili özellik için gerekir.
+class _PhonePermissionsCard extends ConsumerWidget {
+  const _PhonePermissionsCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final perms = ref.watch(_phonePermsProvider).value ?? const {};
+    final d = ref.watch(devicePortsProvider);
+    Future<void> run(Future<Object?> Function(AndroidDevicePorts a) f) async {
+      if (d is AndroidDevicePorts) await f(d);
+      ref.invalidate(_phonePermsProvider);
+    }
+
+    Widget row(String key, IconData icon, String title, String why, Future<Object?> Function(AndroidDevicePorts a) grant) {
+      final ok = perms[key] ?? false;
+      return ListTile(
+        leading: Icon(icon, color: SaklazColors.cyan),
+        title: Text(title),
+        subtitle: Text(why, style: const TextStyle(color: SaklazColors.textSecondary)),
+        trailing: ok
+            ? const Icon(Icons.check_circle, color: SaklazColors.listening)
+            : TextButton(onPressed: () => run(grant), child: const Text('İzin ver')),
+      );
+    }
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Column(children: [
+          const ListTile(
+            title: Text('Telefon entegrasyonu (isteğe bağlı)', style: TextStyle(fontWeight: FontWeight.w700)),
+            subtitle: Text('İzinler yalnızca ilgili özelliği kullanınca gerekir. Veriler cihazdan çıkmaz.'),
+          ),
+          row('contacts', Icons.contacts_outlined, 'Rehber', 'Kişiyi arama ve WhatsApp taslağı için', (a) => a.ensurePermission(DevicePermission.contacts)),
+          row('calendar', Icons.event_outlined, 'Takvim (okuma)', '"Bugün takvimimde ne var?" için', (a) => a.ensurePermission(DevicePermission.calendar)),
+          row('notifications', Icons.notifications_outlined, 'Bildirim gösterme', 'Hatırlatmaların bildirimi için', (a) => a.ensurePermission(DevicePermission.notifications)),
+          row('exact', Icons.alarm_on_outlined, 'Tam zamanlı alarm', 'Hatırlatmaların dakikasında çalması için', (a) => a.openExactAlarmSettings()),
+          row('listener', Icons.mark_chat_unread_outlined, 'Bildirim erişimi', 'Bildirimleri okuma ve onaylı yanıt için', (a) => a.openNotificationAccessSettings()),
+        ]),
+      ),
+    );
+  }
 }

@@ -2,6 +2,67 @@
 
 ---
 
+## 2026-11-08 — Sürüm 1.0.0: Tamamlanmış ürün (yerel AI, otomatik öğrenme, agent)
+
+**Teslim:** `C:\Users\fatih\Desktop\SAKLAZ-AI.apk` ve `dist/SAKLAZ-AI.apk` (release, arm64, 69,7 MB,
+SHA-256 `a649ae4b1d1340d22f4b741bc82f1441dfa5f760364e4f9aae39d33ebdaf598b`) · Kullanım: `KULLANIM.md`
+
+### Yapılanlar
+- **Gerçek yerel LLM:** LiteRT-LM 0.19.1 (Google). Gemini Nano kaldırıldı. Modeller APK'da yok; uygulama içinden
+  Hugging Face'ten (commit'e sabitlenmiş URL) indirilir, kaldığı yerden devam eder, SHA-256 doğrulanır, `noBackupFilesDir/models`.
+  Katalog: Qwen3-1.7B int4 (önerilen, 977 MB), Qwen3-0.6B int4 (343 MB), Qwen2.5-1.5B q8 (1,6 GB) — hepsi Apache-2.0.
+  Gemma 3 1B: Google lisans onayı + HF girişi gerektirdiği için uygulama içinden indirilemez (katalogda yok).
+- **Otomatik kişisel öğrenme:** kural tabanlı Türkçe çıkarıcı (meslek, sektör, şirket, proje, ilgi, tercih, alışkanlık,
+  hedef, karar, yakınlar, konum, isim) + hassas veri filtresi (şifre/kart/IBAN/TC/API anahtarı asla otomatik kaydedilmez).
+- **Hafıza v2:** kategoriler, FTS5 arama (Türkçe kök öneki), çelişki yönetimi (tek değerli kategoride eski bilgi arşivlenir),
+  yinelenme önleme, geçmiş konuşma araması, notlar, hatırlatıcılar, v1→v2 kayıpsız geçiş.
+- **Benim Hafızam:** ara, düzenle, sil, hepsini temizle, eski bilgileri göster, otomatik öğrenme aç/kapat.
+- **Sağlayıcılar (varsayılan PASİF):** OpenAI (Responses API), DeepSeek, Özel OpenAI uyumlu, SAKLAZ Gateway.
+  API anahtarları Keystore AES-GCM ile şifreli; bağlantı testi `GET /models` (metin üretmez).
+- **Agent:** hatırlatıcı (AlarmManager + bildirim + yeniden başlatmada kurulum), not, alarm, takvim ekleme/okuma,
+  arama (çevirici), WhatsApp taslağı (wa.me), uygulama açma, ayar ekranları, bildirim okuma/onaylı yanıt.
+  Risk seviyeleri: orta → sesli "evet" yeterli; yüksek (WhatsApp, bildirim yanıtı) → yalnızca ekrandan onay.
+- **Dosya/fotoğraf:** kamera (CAMERA izni yok), galeri, PDF (PdfRenderer + OCR), metin; ML Kit OCR + görüntü etiketleri → yerel model.
+- **Ekranlar:** Ana ekran (yerel AI/model/hafıza/sağlayıcı durumu), Sohbet Geçmişi, Benim Hafızam, Yapay Zekâ Ayarları,
+  API Sağlayıcıları, Model Yönetimi, Notlar ve Hatırlatmalar, İzinler, Ayarlar.
+
+### Gerçek model doğrulaması (bilgisayarda, gerçek motor + gerçek model — MOCK DEĞİL)
+LiteRT-LM JVM 0.19.1 (Android'deki ile aynı API) + Qwen3-1.7B int4, Windows CPU:
+| Test | Sonuç |
+|---|---|
+| Model yükleme | 5,1 sn |
+| "Merhaba, kendini tanıtır mısın?" | Türkçe yanıt (9,3 sn) |
+| Konuşma devamlılığı ("Az önce kaç öneri vermiştin?") | Doğru: "üç öneri" |
+| Hafıza bağlamıyla "Ben hangi projeler üzerinde çalışıyorum?" | "Sen ASEDEN ERP projesi üzerinde çalışıyorsun." (istem düzeltmesinden sonra) |
+| Hafıza bağlamıyla "Benim mesleğim ne?" | **Yanlış** (projeyi söyledi) → kategorili hafıza sorularının LLM'siz yanıtlanmasına karar verildi |
+| LLM ile JSON bilgi çıkarımı | **Başarısız** (uydurdu) → kural tabanlı çıkarıcıya karar verildi |
+
+### Test sonuçları (otomatik)
+core 3 · voice 11 · ai_core 53 · memory 23 (gerçek SQLite3MC) · uygulama 18 widget (MOCK platform/model/ağ) ·
+Kotlin 3 · gateway 16 (MOCK OpenAI) · `flutter analyze` temiz · debug + release APK derlendi.
+
+### Gerçek cihazda DOĞRULANMADI (Fold 7 ADB'de görünmedi)
+LiteRT-LM'in telefonda yüklenmesi/GPU, model indirme, Türkçe ses tanıma, hatırlatma bildirimi, rehber/takvim/WhatsApp
+intent'leri, bildirim dinleyici, OCR, yan tuş. → `docs/DEVICE_TEST_PHASE2.md` + bu sürüm için KULLANIM.md adımları.
+
+### Hata kayıtları
+| # | Hata | Çözüm |
+|---|---|---|
+| E18 | FTS kök kuralı ("projelerim"→"projeleri*") "proje" bulamadı | İlk 5 harf önek |
+| E19 | `when` Dart'ta kalıp değişkeni adı olamaz | `whenText` |
+| E20 | **Gerçek hata:** diyalog kapanırken TextEditingController animasyon sırasında imha ediliyordu (çökme) | Denetleyici diyaloğun State'inde |
+| E21 | **Gerçek hata:** 412 dp'de Benim Hafızam (148 px) ve Model Yönetimi (65 px) taşması | Wrap / Expanded |
+| E22 | `androidx.core` 1.19.1 compileSdk 37 istedi | 1.17.0 (hedef API 36 korunur) |
+| E23 | Gradle `abiFilters` Flutter tarafından yok sayıldı (APK 108 MB) | `--target-platform android-arm64` (69,7 MB) |
+| E24 | İndirme döngüsünde iş haritaya eklenmeden iptal kontrolü (yarış) | `currentCoroutineContext().isActive` |
+
+### Bilinen sınırlamalar
+- APK'da LiteRT'in x86_64 kopyası (≈26 MB) kalıyor (AAR'dan geliyor; Fold 7'de kullanılmaz).
+- Release APK debug anahtarıyla imzalı (yerel kurulum için). Mağaza için ayrı imza anahtarı gerekir.
+- İndirme uygulama ön plandayken en güvenilir; arka planda sistem süreci durdurabilir (devam ettirilebilir).
+
+---
+
 ## 2026-11-08 — Phase 2: AI Core + Ses Kontrolü + Şifreli Hafıza
 
 **Durum:** Kod, otomatik testler (mock ve yerel) ve release APK tamam. **Fold 7 üzerinde Phase 2 testi YAPILMADI** — cihaz ADB'de önce `offline`, sonra hiç görünmedi. **Gerçek OpenAI testi YAPILMADI** — gateway yayınlanmadı, anahtar tanımlı değil.

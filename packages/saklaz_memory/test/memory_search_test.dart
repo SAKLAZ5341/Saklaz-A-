@@ -3,9 +3,9 @@ import 'package:test/test.dart';
 
 void main() {
   final facts = [
-    MemoryFact(id: 1, text: 'Doğum günüm 12 Mart', createdAt: DateTime(2026)),
-    MemoryFact(id: 2, text: 'Arabamın plakası 34 ABC 123', createdAt: DateTime(2026)),
-    MemoryFact(id: 3, text: 'En sevdiğim renk lacivert', createdAt: DateTime(2026)),
+    MemoryFact(id: 1, category: FactCategory.other, text: 'Doğum günüm 12 Mart', createdAt: DateTime(2026), updatedAt: DateTime(2026)),
+    MemoryFact(id: 2, category: FactCategory.other, text: 'Arabamın plakası 34 ABC 123', createdAt: DateTime(2026), updatedAt: DateTime(2026)),
+    MemoryFact(id: 3, category: FactCategory.preference, text: 'En sevdiğim renk lacivert', createdAt: DateTime(2026), updatedAt: DateTime(2026)),
   ];
   const s = MemorySearch();
 

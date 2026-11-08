@@ -76,6 +76,10 @@ class AssistantRouter {
         return const UseBrain(Brain.localRules);
       case RememberIntent() || MemoryQueryIntent():
         return const UseBrain(Brain.memory);
+      case NoteIntent() || ListNotesIntent() || ReminderIntent() || ListRemindersIntent() || AlarmIntent() ||
+          CalendarAddIntent() || CalendarQueryIntent() || CallIntent() || WhatsAppIntent() || OpenAppIntent() ||
+          OpenSettingsIntent() || NotificationsIntent():
+        return const UseBrain(Brain.localRules);
       case GeneralIntent(:final needsInternet, :final complex):
         if (needsInternet) {
           return c.cloudUsable ? _cloud(c, localAlternative: false) : Unavailable(c.cloudBlocker);
