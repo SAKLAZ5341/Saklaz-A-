@@ -2,6 +2,42 @@
 
 ---
 
+## 2026-11-08 — Sürüm 1.0.1: Donma düzeltmesi ve yan tuş paneli
+
+**Kullanıcı bildirimi:** "Program telefonu donduruyor." ve "Yan tuşa basınca uygulama açılıyor; Gemini gibi
+alttan çıkıp beni dinlemesini ve söylediğimi yapmasını istiyorum."
+**Teslim:** `C:\Users\fatih\Desktop\SAKLAZ-AI-GUNCEL-2.apk` (69,7 MB, SHA-256 `cabb56d0a355036f362d1f1ed03b32f755f3f74b8d976b147aeab585658eb8de`)
+
+### Donma: olası nedenler ve önlemler (cihaz logu alınamadı — kesin neden DOĞRULANMADI)
+| Olası neden | Önlem |
+|---|---|
+| Açılışta ~1 GB model otomatik yükleniyordu | Tembel yükleme: model ilk yerel AI sorusunda arka planda yüklenir |
+| Önce GPU arka ucu deneniyordu (sürücü kilitlenmesi riski) | Varsayılan CPU; GPU ayarlardan "deneysel" olarak açılabilir |
+| Tüm CPU çekirdekleri kullanılıyordu | 4 iş parçacığı |
+| 4096 token KV önbelleği | 2048 token |
+| Arka planda model bellekte kalıyordu | `onTrimMemory(BACKGROUND)` → model bırakılır |
+| Küre animasyonu boştayken sürekli çiziliyordu | Boştayken durur |
+
+### Yan tuş paneli (Gemini benzeri)
+- `SaklazSession` artık uygulamayı AÇMAZ; `VoiceInteractionSession` penceresinde saydam bir Flutter paneli
+  (`assistantOverlayMain`, ayrı motor, `OverlayEngine`) ekranın altından çıkar ve **hemen dinler**.
+- Motor `VoiceInteractionService.onReady`'de önceden ısıtılır (anında açılış).
+- Yerel model ve indirme yöneticisi süreç genelinde tek örnek (`AiServices`): panel ve uygulama aynı modeli paylaşır.
+- **"Söylediğimi yap":** orta riskli işlemler (not, hatırlatma, alarm, takvim, arama ekranı, uygulama/ayar açma)
+  sormadan uygulanır (`autoConfirmMedium`, varsayılan açık, kapatılabilir). WhatsApp ve bildirim yanıtı HER ZAMAN ekrandan onay.
+- Başka uygulama açılınca, dışarı dokununca veya sessiz kalınca (4 sn) panel kapanır.
+- Panelde Activity olmadığından izin istenemez; mikrofon izni yoksa "uygulamayı bir kez açıp izin ver" uyarısı.
+
+### Testler
+core 3 · voice 11 · ai_core 53 · memory 23 · uygulama 23 (5 yeni panel testi: hemen dinleme, sormadan hatırlatma,
+WhatsApp ekran onayı + panel kapanması, dışarı dokununca kapanma, izin yok uyarısı) · analyze temiz · release derlendi.
+
+### Gerçek cihazda DOĞRULANMADI
+Donmanın giderildiği, panelin Samsung yan tuşuyla açılması, panelde FlutterTextureView saydamlığı, panel içinde
+ses tanıma. **Telefon bağlanırsa** `adb logcat -s SaklazOverlay SaklazSession SaklazLlm flutter` ile doğrulanmalı.
+
+---
+
 ## 2026-11-08 — Sürüm 1.0.0: Tamamlanmış ürün (yerel AI, otomatik öğrenme, agent)
 
 **Teslim:** `C:\Users\fatih\Desktop\SAKLAZ-AI.apk` ve `dist/SAKLAZ-AI.apk` (release, arm64, 69,7 MB,

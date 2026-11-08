@@ -50,7 +50,9 @@ class LiteRtLlmController(private val context: Context) : LocalLlmHostApi {
             releaseLocked()
             status = LlmStatusMessage(state = LlmEngineState.LOADING, fileName = fileName)
             val started = System.currentTimeMillis()
-            val backends = if (preferGpu) listOf<Backend>(Backend.GPU(), Backend.CPU()) else listOf<Backend>(Backend.CPU())
+            // CPU: 4 iş parçacığı (arayüze ve sisteme çekirdek bırakır; telefonun donmasını önler).
+            val cpu = Backend.CPU(CPU_THREADS, null)
+            val backends = if (preferGpu) listOf<Backend>(Backend.GPU(), cpu) else listOf<Backend>(cpu)
             var lastError: Throwable? = null
             for (backend in backends) {
                 try {
@@ -61,7 +63,7 @@ class LiteRtLlmController(private val context: Context) : LocalLlmHostApi {
                                 backend,
                                 null,
                                 null,
-                                maxTokens.toInt().coerceIn(512, 4096),
+                                maxTokens.toInt().coerceIn(512, MAX_TOKENS),
                                 null,
                                 File(context.cacheDir, "litertlm").apply { mkdirs() }.absolutePath,
                             ),
@@ -151,5 +153,9 @@ class LiteRtLlmController(private val context: Context) : LocalLlmHostApi {
 
     private companion object {
         const val TAG = "SaklazLlm"
+        const val CPU_THREADS = 4
+
+        // KV önbelleği belleği: 2048 token, 1.7B modelde ~1,5 GB tepe RAM ile sınırlı kalır.
+        const val MAX_TOKENS = 2048
     }
 }

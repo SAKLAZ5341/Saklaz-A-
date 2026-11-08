@@ -2960,3 +2960,71 @@ interface NotificationsHostApi {
     }
   }
 }
+/** Generated interface from Pigeon that represents a handler of messages from Flutter. */
+interface AssistSessionHostApi {
+  /** Bu motor yan tuş panelinde mi çalışıyor? */
+  fun isOverlay(): Boolean
+  /** Paneli kapatır (ana uygulamada etkisizdir). */
+  fun dismiss()
+  /** Tam uygulamayı açar ve paneli kapatır. */
+  fun openMainApp()
+
+  companion object {
+    /** The codec used by AssistSessionHostApi. */
+    val codec: MessageCodec<Any?> by lazy {
+      SaklazApiPigeonCodec()
+    }
+    /** Sets up an instance of `AssistSessionHostApi` to handle messages through the `binaryMessenger`. */
+    @JvmOverloads
+    fun setUp(binaryMessenger: BinaryMessenger, api: AssistSessionHostApi?, messageChannelSuffix: String = "") {
+      val separatedMessageChannelSuffix = if (messageChannelSuffix.isNotEmpty()) ".$messageChannelSuffix" else ""
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.saklaz_android_bridge.AssistSessionHostApi.isOverlay$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            val wrapped: List<Any?> = try {
+              listOf(api.isOverlay())
+            } catch (exception: Throwable) {
+              SaklazApiPigeonUtils.wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.saklaz_android_bridge.AssistSessionHostApi.dismiss$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            val wrapped: List<Any?> = try {
+              api.dismiss()
+              listOf(null)
+            } catch (exception: Throwable) {
+              SaklazApiPigeonUtils.wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.saklaz_android_bridge.AssistSessionHostApi.openMainApp$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            val wrapped: List<Any?> = try {
+              api.openMainApp()
+              listOf(null)
+            } catch (exception: Throwable) {
+              SaklazApiPigeonUtils.wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+    }
+  }
+}

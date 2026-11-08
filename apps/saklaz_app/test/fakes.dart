@@ -164,6 +164,17 @@ class FakeDevice extends NoDevice {
   Future<void> scheduleReminder(int id, String text, DateTime at) async => calls.add('rem:$text');
 }
 
+class FakeAssistSession implements AssistSession {
+  int dismissed = 0;
+  int opened = 0;
+  @override
+  Future<bool> isOverlay() async => true;
+  @override
+  Future<void> dismiss() async => dismissed++;
+  @override
+  Future<void> openMainApp() async => opened++;
+}
+
 class Fakes {
   Fakes({Map<String, String> prefs = const {}}) : initialPrefs = Map.of(prefs);
 
@@ -177,6 +188,7 @@ class Fakes {
   final models = FakeModelManager();
   final device = FakeDevice();
   final secrets = InMemorySecretStore();
+  final session = FakeAssistSession();
   final conversations = InMemoryConversationRepository();
   final facts = InMemoryFactRepository();
   final notes = InMemoryNoteRepository();
@@ -195,6 +207,7 @@ class Fakes {
         modelManagerProvider.overrideWithValue(models),
         devicePortsProvider.overrideWithValue(device),
         secretStoreProvider.overrideWithValue(secrets),
+        assistSessionProvider.overrideWithValue(session),
         memoryStoresProvider.overrideWith((ref) async => MemoryStores(
               conversations: conversations,
               facts: facts,

@@ -8,6 +8,7 @@ import 'package:saklaz_voice/saklaz_voice.dart';
 
 import '../infrastructure/providers.dart';
 import 'assistant_provider.dart';
+import 'local_ai_controller.dart';
 import 'settings_controller.dart';
 
 class ConversationState {
@@ -19,7 +20,11 @@ class ConversationState {
     this.pending,
     this.lastInvocation,
     this.notice,
+    this.externalLaunches = 0,
   });
+
+  /// Asistanın başka bir uygulamayı açtığı işlem sayısı (yan tuş paneli bununla kapanır).
+  final int externalLaunches;
 
   final List<ChatMessage> messages;
   final VoiceState voice;
@@ -39,8 +44,10 @@ class ConversationState {
     AssistInvocation? lastInvocation,
     String? notice,
     bool clearNotice = false,
+    int? externalLaunches,
   }) =>
       ConversationState(
+        externalLaunches: externalLaunches ?? this.externalLaunches,
         messages: messages ?? this.messages,
         voice: voice ?? this.voice,
         conversationActive: conversationActive ?? this.conversationActive,
@@ -143,8 +150,9 @@ class ConversationController extends Notifier<ConversationState> {
 
   void _onInvocation(AssistInvocation inv) {
     _log.i(_tag, 'Asistan çağrıldı: ${inv.source.name}');
-    state = state.copyWith(lastInvocation: inv);
-    if (ref.read(settingsProvider).listenOnAssistInvoke) unawaited(startConversation());
+    state = state.copyWith(lastInvocation: inv, clearPending: true, clearNotice: true);
+    // Yan tuş paneli: kullanıcı bilinçli olarak çağırdı -> hemen dinle.
+    if (ref.read(isOverlayProvider) || ref.read(settingsProvider).listenOnAssistInvoke) unawaited(startConversation());
   }
 
   // ---------------------------------------------------------------- mesajlar
@@ -176,6 +184,12 @@ class ConversationController extends Notifier<ConversationState> {
     AssistantTurn turn;
     try {
       turn = await ref.read(assistantProvider).respond(trimmed, state.messages);
+      // "Söylediğimi yap": orta riskli işlemler ayar açıksa sormadan uygulanır.
+      if (turn.pending case ConfirmAgentAction(:final action)
+          when action.risk != RiskLevel.high && ref.read(settingsProvider).autoConfirmMedium) {
+        _log.log(LogLevel.audit, _tag, 'Agent eylemi otomatik uygulandı: ${action.runtimeType}');
+        turn = await ref.read(assistantProvider).execute(action);
+      }
     } on Object catch (e) {
       _log.e(_tag, 'Asistan hatası', error: e);
       turn = const AssistantTurn('Beklenmeyen bir hata oluştu.', MessageSource.system);
@@ -258,6 +272,14 @@ class ConversationController extends Notifier<ConversationState> {
       ));
     }
     state = state.copyWith(messages: await repo.all(), busy: false, pending: pending, clearPending: pending == null);
+    unawaited(ref.read(localAiProvider.notifier).syncStatus());
+    if (turn.openedExternalApp) {
+      // Başka bir uygulama açıldı: mikrofonu kapat, panel kapanabilir.
+      state = state.copyWith(externalLaunches: state.externalLaunches + 1, conversationActive: false);
+      await _voice.cancelListening();
+      _voice.markIdle();
+      return;
+    }
 
     final s = ref.read(settingsProvider);
     if (s.voiceReplies) {

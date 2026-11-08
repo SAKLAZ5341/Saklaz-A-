@@ -17,7 +17,8 @@ class AppSettings {
     this.speechRate = 1.0,
     this.speechPitch = 1.0,
     this.autoLearn = true,
-    this.preferGpu = true,
+    this.preferGpu = false,
+    this.autoConfirmMedium = true,
     String? activeModelId,
     this.activeProvider,
     this.cloudConsent = CloudMode.ask,
@@ -36,7 +37,12 @@ class AppSettings {
 
   /// Konuşmalardan otomatik kişisel bilgi öğrenme.
   final bool autoLearn;
+  /// GPU deneysel: bazı cihazlarda sürücü kilitlenmesine yol açabilir. Varsayılan CPU.
   final bool preferGpu;
+
+  /// Orta riskli işlemleri (not, hatırlatma, alarm, takvim, arama ekranı) sormadan yap.
+  /// Yüksek riskli işlemler (WhatsApp, bildirim yanıtı) HER ZAMAN ekrandan onay ister.
+  final bool autoConfirmMedium;
   final String activeModelId;
 
   /// null = Yerel AI (varsayılan). Bulut yalnızca kullanıcı seçip etkinleştirirse.
@@ -65,6 +71,7 @@ class AppSettings {
     double? speechPitch,
     bool? autoLearn,
     bool? preferGpu,
+    bool? autoConfirmMedium,
     String? activeModelId,
     ProviderKind? activeProvider,
     bool clearActiveProvider = false,
@@ -80,6 +87,7 @@ class AppSettings {
         speechPitch: speechPitch ?? this.speechPitch,
         autoLearn: autoLearn ?? this.autoLearn,
         preferGpu: preferGpu ?? this.preferGpu,
+        autoConfirmMedium: autoConfirmMedium ?? this.autoConfirmMedium,
         activeModelId: activeModelId ?? this.activeModelId,
         activeProvider: clearActiveProvider ? null : (activeProvider ?? this.activeProvider),
         cloudConsent: cloudConsent ?? this.cloudConsent,
@@ -95,6 +103,7 @@ class AppSettings {
         'speechPitch': '$speechPitch',
         'autoLearn': '$autoLearn',
         'preferGpu': '$preferGpu',
+        'autoConfirmMedium': '$autoConfirmMedium',
         'activeModelId': activeModelId,
         'activeProvider': activeProvider?.name ?? 'local',
         'cloudConsent': cloudConsent.name,
@@ -128,6 +137,7 @@ class AppSettings {
       speechPitch: n('speechPitch', d.speechPitch),
       autoLearn: b('autoLearn', d.autoLearn),
       preferGpu: b('preferGpu', d.preferGpu),
+      autoConfirmMedium: b('autoConfirmMedium', d.autoConfirmMedium),
       activeModelId: modelById(p['activeModelId']) != null ? p['activeModelId'] : null,
       activeProvider: ProviderKind.values.asNameMap()[p['activeProvider']],
       cloudConsent: p['cloudConsent'] == 'always' ? CloudMode.always : CloudMode.ask,

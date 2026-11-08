@@ -15,28 +15,41 @@ class LocalAiState {
     this.downloads = const {},
     this.llm = const LocalLlmInfo(LocalLlmState.noModel),
     this.capability,
+    this.activeFile,
   });
 
-  /// Kurulu model dosya adları.
   final Set<String> installed;
   final Map<String, DownloadStatus> downloads;
   final LocalLlmInfo llm;
   final DeviceCapability? capability;
 
+  /// İlk soruda yüklenecek kurulu model.
+  final String? activeFile;
+
   bool isInstalled(ModelSpec m) => installed.contains(m.fileName);
   bool get ready => llm.state == LocalLlmState.ready;
 
-  LocalAiState copyWith({Set<String>? installed, Map<String, DownloadStatus>? downloads, LocalLlmInfo? llm, DeviceCapability? capability}) =>
+  /// Yerel model kullanılabilir mi? (Yüklü olması gerekmez; ilk soruda yüklenir.)
+  bool get usable => ready || (activeFile != null && installed.contains(activeFile));
+
+  LocalAiState copyWith({
+    Set<String>? installed,
+    Map<String, DownloadStatus>? downloads,
+    LocalLlmInfo? llm,
+    DeviceCapability? capability,
+    String? activeFile,
+  }) =>
       LocalAiState(
         installed: installed ?? this.installed,
         downloads: downloads ?? this.downloads,
         llm: llm ?? this.llm,
         capability: capability ?? this.capability,
+        activeFile: activeFile ?? this.activeFile,
       );
 }
 
-/// Model indirme, doğrulama, yükleme ve bellek yönetimi.
-/// Açılışta seçili model kuruluysa otomatik yüklenir (ağ GEREKMEZ).
+/// Model indirme, doğrulama ve yükleme. Telefonun donmaması için model açılışta
+/// YÜKLENMEZ; ilk yerel AI sorusunda (arka planda) yüklenir.
 class LocalAiController extends Notifier<LocalAiState> {
   static const _tag = 'LocalAi';
   StreamSubscription<(String, DownloadStatus)>? _sub;
@@ -47,25 +60,38 @@ class LocalAiController extends Notifier<LocalAiState> {
   LocalAiState build() {
     _sub = _mm.progress.listen(_onProgress);
     ref.onDispose(() => _sub?.cancel());
-    Future.microtask(_init);
+    Future.microtask(refresh);
     return const LocalAiState();
   }
 
-  Future<void> _init() async {
-    await refresh();
-    final spec = modelById(ref.read(settingsProvider).activeModelId);
-    if (spec != null && state.isInstalled(spec)) await load(spec);
-  }
-
+  /// Kurulu modelleri ve motor durumunu okur. Belleğe yükleme YAPMAZ.
   Future<void> refresh() async {
     try {
       final installed = await _mm.installedFiles();
       final cap = await _mm.capability();
+      final settings = ref.read(settingsProvider);
+      var active = modelById(settings.activeModelId);
+      if (active == null || !installed.contains(active.fileName)) {
+        active = modelCatalog.where((m) => installed.contains(m.fileName)).firstOrNull;
+      }
       final llm = ref.read(localLlmProvider);
-      if (llm is AndroidLocalLlm) llm.noModelInstalled = installed.isEmpty;
-      state = state.copyWith(installed: installed, capability: cap, llm: await llm.info());
+      if (llm is AndroidLocalLlm) {
+        llm.noModelInstalled = installed.isEmpty;
+        llm.preferredFile = active?.fileName;
+        llm.preferGpu = settings.preferGpu;
+      }
+      state = state.copyWith(installed: installed, capability: cap, llm: await llm.info(), activeFile: active?.fileName);
     } on Object catch (e) {
       ref.read(loggerProvider).w(_tag, 'Model durumu okunamadı', error: e);
+    }
+  }
+
+  /// Yalnızca motor durumunu tazeler (ör. tembel yüklemeden sonra).
+  Future<void> syncStatus() async {
+    try {
+      state = state.copyWith(llm: await ref.read(localLlmProvider).info());
+    } on Object {
+      // yok say
     }
   }
 
@@ -87,13 +113,16 @@ class LocalAiController extends Notifier<LocalAiState> {
     await refresh();
   }
 
+  /// Kullanıcı "Yükle ve kullan" dediğinde: modeli seç ve hemen yükle.
   Future<void> load(ModelSpec spec) async {
+    ref.read(settingsProvider.notifier).update((s) => s.copyWith(activeModelId: spec.id));
     final llm = ref.read(localLlmProvider);
     if (llm is! AndroidLocalLlm) return;
-    state = state.copyWith(llm: LocalLlmInfo(LocalLlmState.loading, modelName: spec.fileName));
-    final info = await llm.load(spec.fileName, preferGpu: ref.read(settingsProvider).preferGpu);
+    llm.preferredFile = spec.fileName;
+    llm.preferGpu = ref.read(settingsProvider).preferGpu;
+    state = state.copyWith(llm: LocalLlmInfo(LocalLlmState.loading, modelName: spec.fileName), activeFile: spec.fileName);
+    final info = await llm.ensureLoaded();
     state = state.copyWith(llm: info);
-    ref.read(settingsProvider.notifier).update((s) => s.copyWith(activeModelId: spec.id));
     ref.read(loggerProvider).i(_tag, 'Model yükleme: ${info.state.name} ${info.backend ?? ''} ${info.detail ?? ''}');
   }
 
@@ -107,11 +136,9 @@ class LocalAiController extends Notifier<LocalAiState> {
     final (id, status) = e;
     state = state.copyWith(downloads: {...state.downloads, id: status});
     if (status.phase == DownloadPhase.completed) {
-      unawaited(() async {
-        await refresh();
-        final spec = modelById(id);
-        if (spec != null && !state.ready) await load(spec);
-      }());
+      final spec = modelById(id);
+      if (spec != null) ref.read(settingsProvider.notifier).update((s) => s.copyWith(activeModelId: spec.id));
+      unawaited(refresh());
     }
   }
 }

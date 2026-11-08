@@ -48,7 +48,7 @@ final assistantProvider = Provider<SaklazAssistant>((ref) {
         cloudMode: client == null ? CloudMode.off : s.cloudConsent,
         cloudConfigured: client != null,
         online: online,
-        localLlmReady: ref.read(localAiProvider).ready,
+        localLlmReady: ref.read(localAiProvider).usable,
       );
     },
   );

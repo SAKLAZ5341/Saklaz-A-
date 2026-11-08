@@ -135,7 +135,7 @@ class ConfirmAgentAction extends PendingAction {
 }
 
 class AssistantTurn {
-  const AssistantTurn(this.text, this.source, {this.pending, this.learned = const []});
+  const AssistantTurn(this.text, this.source, {this.pending, this.learned = const [], this.openedExternalApp = false});
   final String text;
   final MessageSource source;
   final PendingAction? pending;
@@ -143,7 +143,11 @@ class AssistantTurn {
   /// Bu mesajdan otomatik öğrenilen bilgiler (şeffaflık için gösterilir).
   final List<MemoryFact> learned;
 
-  AssistantTurn withLearned(List<MemoryFact> l) => AssistantTurn(text, source, pending: pending, learned: l);
+  /// Başka bir uygulama açıldı (yan tuş paneli kapanabilir).
+  final bool openedExternalApp;
+
+  AssistantTurn withLearned(List<MemoryFact> l) =>
+      AssistantTurn(text, source, pending: pending, learned: l, openedExternalApp: openedExternalApp);
 }
 
 /// Sesli onay yanıtlarını tanır.
@@ -270,10 +274,10 @@ class SaklazAssistant {
         final apps = await device.findApps(name);
         if (apps.isEmpty) return AssistantTurn('"$name" adında bir uygulama bulamadım.', MessageSource.localRules);
         final ok = await device.launchApp(apps.first.packageName);
-        return AssistantTurn(ok ? '${apps.first.label} açılıyor.' : '${apps.first.label} açılamadı.', MessageSource.localRules);
+        return AssistantTurn(ok ? '${apps.first.label} açılıyor.' : '${apps.first.label} açılamadı.', MessageSource.localRules, openedExternalApp: ok);
       case OpenSettingsIntent(:final target):
         final ok = await device.openSettings(target);
-        return AssistantTurn(ok ? 'Ayarlar açılıyor.' : 'Bu ayar ekranı açılamadı.', MessageSource.localRules);
+        return AssistantTurn(ok ? 'Ayarlar açılıyor.' : 'Bu ayar ekranı açılamadı.', MessageSource.localRules, openedExternalApp: ok);
       case NotificationsIntent():
         return _notifications();
       case GeneralIntent():
@@ -353,13 +357,13 @@ class SaklazAssistant {
         return AssistantTurn(ok ? 'Alarm $whenText için kuruldu.' : 'Saat uygulaması alarm isteğini kabul etmedi.', MessageSource.localRules);
       case AddCalendarEventAction(:final title, :final start):
         final ok = await device.insertCalendarEvent(title, start, start.add(const Duration(hours: 1)));
-        return AssistantTurn(ok ? 'Takvim açıldı; kaydetmek için Kaydet\'e dokun.' : 'Takvim uygulaması açılamadı.', MessageSource.localRules);
+        return AssistantTurn(ok ? 'Takvim açıldı; kaydetmek için Kaydet\'e dokun.' : 'Takvim uygulaması açılamadı.', MessageSource.localRules, openedExternalApp: ok);
       case CallAction(:final name, :final phone):
         final ok = await device.openDialer(phone);
-        return AssistantTurn(ok ? '$name için çevirici açıldı.' : 'Çevirici açılamadı.', MessageSource.localRules);
+        return AssistantTurn(ok ? '$name için çevirici açıldı.' : 'Çevirici açılamadı.', MessageSource.localRules, openedExternalApp: ok);
       case WhatsAppAction(:final name, :final phone, :final text):
         final ok = await device.openWhatsApp(phone, text);
-        return AssistantTurn(ok ? 'WhatsApp\'ta $name için mesaj taslağı açıldı. Göndermek için GÖNDER\'e dokun.' : 'WhatsApp açılamadı.', MessageSource.localRules);
+        return AssistantTurn(ok ? 'WhatsApp\'ta $name için mesaj taslağı açıldı. Göndermek için GÖNDER\'e dokun.' : 'WhatsApp açılamadı.', MessageSource.localRules, openedExternalApp: ok);
       case ReplyNotificationAction(:final key, :final text):
         final ok = await device.replyToNotification(key, text);
         return AssistantTurn(ok ? 'Yanıt gönderildi.' : 'Bu bildirime yanıt verilemedi.', MessageSource.localRules);

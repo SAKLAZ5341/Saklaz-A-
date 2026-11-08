@@ -136,7 +136,7 @@ void main() {
 
   group('Agent (onaylı telefon işlemleri)', () {
     testWidgets('hatırlatıcı: kart çıkar, sesli "evet" ile onaylanır', (tester) async {
-      final f = Fakes();
+      final f = Fakes(prefs: {'autoConfirmMedium': 'false'});
       await pumpApp(tester, f);
       await tester.tap(startBtn);
       await settle(tester);

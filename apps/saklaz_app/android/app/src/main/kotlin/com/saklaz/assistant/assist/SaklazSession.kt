@@ -2,47 +2,79 @@ package com.saklaz.assistant.assist
 
 import android.content.Context
 import android.content.Intent
+import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
 import android.service.voice.VoiceInteractionSession
 import android.util.Log
+import android.view.View
+import android.view.ViewGroup
+import android.view.WindowManager
+import android.widget.FrameLayout
 import com.saklaz.assistant.MainActivity
+import io.flutter.embedding.android.FlutterTextureView
+import io.flutter.embedding.android.FlutterView
 
 /**
- * Yan tuş (Samsung: Yan tuş -> Basılı tut -> Dijital asistan), ana ekran tuşuna
- * uzun basma veya hareket ile asistan çağrıldığında gösterilen oturum.
+ * Yan tuşla açılan SAKLAZ paneli (Gemini benzeri): uygulama AÇILMAZ; mevcut ekranın
+ * üzerinde, alttan çıkan saydam bir Flutter paneli gösterilir ve hemen dinlemeye başlar.
  *
- * Oturumun kendi penceresini kullanmak yerine Flutter arayüzünü taşıyan
- * [MainActivity]'yi `startAssistantActivity` ile açar (Android'in asistan
- * katmanında, resmi yöntem) ve oturum penceresini gizler.
- *
- * Gizlilik: Ekran içeriği (assist structure / ekran görüntüsü) İSTENMEZ ve
- * işlenmez. onHandleAssist geçersiz kılınmamıştır.
+ * Gizlilik: Ekran içeriği / ekran görüntüsü İSTENMEZ.
  */
 class SaklazSession(context: Context) : VoiceInteractionSession(context) {
 
+    private var flutterView: FlutterView? = null
+
     override fun onCreate() {
         super.onCreate()
-        // Ekran içeriği ve ekran görüntüsü toplanmasını kapat.
         setDisabledShowContext(SHOW_WITH_ASSIST or SHOW_WITH_SCREENSHOT)
+        window.window?.apply {
+            setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+            clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
+            setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
+        }
+    }
+
+    override fun onCreateContentView(): View? = try {
+        val engine = OverlayEngine.get(context)
+        val view = FlutterView(context, FlutterTextureView(context).apply { isOpaque = false })
+        view.attachToFlutterEngine(engine)
+        flutterView = view
+        FrameLayout(context).apply {
+            setBackgroundColor(Color.TRANSPARENT)
+            addView(view, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+        }
+    } catch (t: Throwable) {
+        Log.e(TAG, "Panel oluşturulamadı; tam uygulama açılacak", t)
+        null
     }
 
     override fun onShow(args: Bundle?, showFlags: Int) {
         super.onShow(args, showFlags)
-        Log.i(TAG, "Asistan oturumu gösterildi (showFlags=$showFlags)")
+        if (flutterView == null) {
+            // Yedek yol: panel kurulamazsa tam uygulamayı aç.
+            val intent = Intent(context, MainActivity::class.java)
+                .putExtra(MainActivity.EXTRA_ASSIST_SOURCE, MainActivity.SOURCE_SESSION)
+            runCatching { startAssistantActivity(intent) }
+            hide()
+            return
+        }
+        OverlayEngine.onDismiss = { hide() }
+        OverlayEngine.get(context).lifecycleChannel.appIsResumed()
+        OverlayEngine.invoke()
+        Log.i(TAG, "Panel gösterildi")
+    }
 
-        val intent = Intent(context, MainActivity::class.java).apply {
-            putExtra(MainActivity.EXTRA_ASSIST_SOURCE, MainActivity.SOURCE_SESSION)
-            addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
-        }
-        try {
-            startAssistantActivity(intent)
-        } catch (e: RuntimeException) {
-            Log.w(TAG, "startAssistantActivity başarısız, normal başlatma deneniyor", e)
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            context.startActivity(intent)
-        }
-        // Oturum penceresi boş; dokunmaları engellememesi için gizle.
-        hide()
+    override fun onHide() {
+        runCatching { OverlayEngine.get(context).lifecycleChannel.appIsPaused() }
+        super.onHide()
+    }
+
+    override fun onDestroy() {
+        flutterView?.detachFromFlutterEngine()
+        flutterView = null
+        OverlayEngine.onDismiss = null
+        super.onDestroy()
     }
 
     private companion object {

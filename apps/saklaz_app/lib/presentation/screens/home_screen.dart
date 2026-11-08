@@ -198,6 +198,7 @@ class _StatusStrip extends ConsumerWidget {
     final (aiLabel, aiColor) = switch (ai.llm.state) {
       LocalLlmState.ready => ('Yerel AI hazır', SaklazColors.listening),
       LocalLlmState.loading => ('Model yükleniyor…', SaklazColors.cyan),
+      LocalLlmState.notLoaded when ai.usable => ('Yerel AI hazır', SaklazColors.listening),
       LocalLlmState.notLoaded => ('Model yüklü değil', SaklazColors.warning),
       LocalLlmState.noModel => ('Model indirilmedi', SaklazColors.warning),
       LocalLlmState.failed => ('Model hatası', SaklazColors.danger),

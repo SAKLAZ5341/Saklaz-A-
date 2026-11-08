@@ -28,6 +28,10 @@ final modelManagerProvider = Provider<ModelManager>((ref) => AndroidModelManager
 final localLlmProvider = Provider<LocalLlm>((ref) => AndroidLocalLlm());
 final devicePortsProvider = Provider<DevicePorts>((ref) => AndroidDevicePorts());
 final documentReaderProvider = Provider<DocumentReader>((ref) => AndroidDocumentReader());
+final assistSessionProvider = Provider<AssistSession>((ref) => AndroidAssistSession());
+
+/// Bu motor yan tuş panelinde mi çalışıyor? (panel girişinde true ile ezilir)
+final isOverlayProvider = Provider<bool>((ref) => false);
 
 // ---- Hafıza ----
 

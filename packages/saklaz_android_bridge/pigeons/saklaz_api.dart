@@ -539,3 +539,19 @@ abstract class NotificationsHostApi {
   /// Bildirimdeki "Yanıtla" eylemiyle yanıt gönderir. YALNIZCA kullanıcı onayından sonra.
   bool reply(String key, String text);
 }
+
+// ---------------------------------------------------------------------------
+// Yan tuş paneli (VoiceInteractionSession içinde Flutter katmanı)
+// ---------------------------------------------------------------------------
+
+@HostApi()
+abstract class AssistSessionHostApi {
+  /// Bu motor yan tuş panelinde mi çalışıyor?
+  bool isOverlay();
+
+  /// Paneli kapatır (ana uygulamada etkisizdir).
+  void dismiss();
+
+  /// Tam uygulamayı açar ve paneli kapatır.
+  void openMainApp();
+}

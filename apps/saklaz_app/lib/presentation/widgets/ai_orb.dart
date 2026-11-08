@@ -35,8 +35,10 @@ class _AiOrbState extends State<AiOrb> with SingleTickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     final reduceMotion = MediaQuery.of(context).disableAnimations;
-    if (reduceMotion && _ctrl.isAnimating) _ctrl.stop();
-    if (!reduceMotion && !_ctrl.isAnimating) _ctrl.repeat();
+    // Boştayken animasyon durur (pil ve GPU tasarrufu); dinlerken/konuşurken çalışır.
+    final animate = !reduceMotion && widget.phase != VoicePhase.idle;
+    if (!animate && _ctrl.isAnimating) _ctrl.stop();
+    if (animate && !_ctrl.isAnimating) _ctrl.repeat();
 
     return Semantics(
       label: 'SAKLAZ küresi: ${phaseLabel(widget.phase)}',

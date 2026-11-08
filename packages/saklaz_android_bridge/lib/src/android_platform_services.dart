@@ -202,6 +202,20 @@ class AndroidLocalLlm implements LocalLlm {
   /// Hiç model kurulu değilse uygulama katmanı bunu true yapar.
   bool noModelInstalled = false;
 
+  /// İlk soruda yüklenecek model dosyası (tembel yükleme: açılışta bellek harcanmaz).
+  String? preferredFile;
+  bool preferGpu = false;
+  Future<LocalLlmInfo>? _loading;
+
+  /// Model yüklü değilse yükler; aynı anda gelen çağrılar tek yüklemeyi bekler.
+  Future<LocalLlmInfo> ensureLoaded() async {
+    final current = _map(await _api.status());
+    if (current.state == LocalLlmState.ready && current.modelName == preferredFile) return current;
+    final file = preferredFile;
+    if (file == null) return const LocalLlmInfo(LocalLlmState.noModel);
+    return _loading ??= load(file, preferGpu: preferGpu).whenComplete(() => _loading = null);
+  }
+
   static LocalLlmInfo _map(g.LlmStatusMessage s) => LocalLlmInfo(
         switch (s.state) {
           g.LlmEngineState.notLoaded => LocalLlmState.notLoaded,
@@ -236,6 +250,10 @@ class AndroidLocalLlm implements LocalLlm {
     int maxOutputTokens = 384,
   }) async {
     try {
+      final loaded = await ensureLoaded();
+      if (loaded.state != LocalLlmState.ready) {
+        return Result.err(Failure('local-model', 'Yerel model yüklenemedi: ${loaded.detail ?? loaded.state.name}'));
+      }
       final r = await _api.generate(
         system,
         [for (final m in history) g.ChatTurnMessage(fromUser: m.role == LlmRole.user, text: m.text)],
@@ -407,4 +425,23 @@ Future<({String? url, String? token})?> consumeDevConfig() async {
   } on Object {
     return null;
   }
+}
+
+// ============================================================================ Yan tuş paneli
+
+abstract interface class AssistSession {
+  Future<bool> isOverlay();
+  Future<void> dismiss();
+  Future<void> openMainApp();
+}
+
+class AndroidAssistSession implements AssistSession {
+  AndroidAssistSession({g.AssistSessionHostApi? api}) : _api = api ?? g.AssistSessionHostApi();
+  final g.AssistSessionHostApi _api;
+  @override
+  Future<bool> isOverlay() => _api.isOverlay();
+  @override
+  Future<void> dismiss() => _api.dismiss();
+  @override
+  Future<void> openMainApp() => _api.openMainApp();
 }
